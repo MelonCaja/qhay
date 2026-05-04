@@ -1,7 +1,7 @@
 import { Receta, Macros, IngredienteReceta } from '../types/receta';
 
-const _u = (id: string) =>
-  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=400&q=80`;
+// TheMealDB category images — URLs estables, fotos reales de comida, sin API key
+const MDB = 'https://www.themealdb.com/images/category';
 
 export interface RecetaVisual {
   emoji: string;
@@ -12,42 +12,44 @@ export interface RecetaVisual {
 const _match = (texto: string, ...words: string[]) =>
   words.some((w) => texto.includes(w));
 
-/** Devuelve emoji, color de fondo e imagen de referencia para la categoría de la receta. */
+/** Devuelve emoji, color de fondo e imagen de referencia por categoría. */
 export function getRecetaVisual(receta: Receta): RecetaVisual {
-  const t = `${receta.nombre} ${receta.ingredientes.map((i: IngredienteReceta) => i.nombre).join(' ')}`.toLowerCase();
+  const ingredientes = (receta.ingredientes ?? []) as IngredienteReceta[];
+  const restricciones = receta.restricciones ?? [];
+  const t = `${receta.nombre ?? ''} ${ingredientes.map((i) => i.nombre).join(' ')}`.toLowerCase();
 
-  if (receta.restricciones.includes('vegano'))
-    return { emoji: '🥬', bgColor: '#E8F5E9', defaultImageUrl: _u('1540420773420-3366772f4999') };
-  if (receta.restricciones.includes('vegetariano'))
-    return { emoji: '🥗', bgColor: '#F1F8E9', defaultImageUrl: _u('1540189549336-e6e99c3679fe') };
+  if (restricciones.includes('vegano'))
+    return { emoji: '🥬', bgColor: '#E8F5E9', defaultImageUrl: `${MDB}/vegan.png` };
+  if (restricciones.includes('vegetariano'))
+    return { emoji: '🥗', bgColor: '#F1F8E9', defaultImageUrl: `${MDB}/vegetarian.png` };
   if (_match(t, 'postre', 'torta', 'galleta', 'manjar', 'arroz con leche', 'panqueque', 'avena'))
-    return { emoji: '🍰', bgColor: '#FCE4EC', defaultImageUrl: _u('1488477181946-6428a0291777') };
+    return { emoji: '🍰', bgColor: '#FCE4EC', defaultImageUrl: `${MDB}/dessert.png` };
   if (_match(t, 'sopaipilla', 'empanada', 'pan', 'sándwich', 'churrasco'))
-    return { emoji: '🥪', bgColor: '#FFF8E1', defaultImageUrl: _u('1509440159596-0249088772ff') };
+    return { emoji: '🥪', bgColor: '#FFF8E1', defaultImageUrl: `${MDB}/miscellaneous.png` };
   if (_match(t, 'sopa', 'cazuela', 'caldo', 'pantruca'))
-    return { emoji: '🍲', bgColor: '#E8EAF6', defaultImageUrl: _u('1547592166-23ac45744acd') };
+    return { emoji: '🍲', bgColor: '#E8EAF6', defaultImageUrl: `${MDB}/side.png` };
   if (_match(t, 'pollo', 'pavo'))
-    return { emoji: '🍗', bgColor: '#FFF3E0', defaultImageUrl: _u('1598103442097-8b74394b95c7') };
+    return { emoji: '🍗', bgColor: '#FFF3E0', defaultImageUrl: `${MDB}/chicken.png` };
   if (_match(t, 'vacuno', 'carne', 'bisteck', 'lomo'))
-    return { emoji: '🥩', bgColor: '#FFEBEE', defaultImageUrl: _u('1558618666-fcd25c85cd64') };
+    return { emoji: '🥩', bgColor: '#FFEBEE', defaultImageUrl: `${MDB}/beef.png` };
   if (_match(t, 'cerdo', 'longaniza', 'costilla'))
-    return { emoji: '🍖', bgColor: '#FBE9E7', defaultImageUrl: _u('1432139555190-58524dae6a55') };
+    return { emoji: '🍖', bgColor: '#FBE9E7', defaultImageUrl: `${MDB}/pork.png` };
   if (_match(t, 'pescado', 'atún', 'salmón', 'ceviche', 'mariscos'))
-    return { emoji: '🐟', bgColor: '#E3F2FD', defaultImageUrl: _u('1519708227418-c8fd9a32b7a2') };
+    return { emoji: '🐟', bgColor: '#E3F2FD', defaultImageUrl: `${MDB}/seafood.png` };
   if (_match(t, 'huevo', 'revuelto', 'omelette', 'tortilla de papa'))
-    return { emoji: '🍳', bgColor: '#FFFDE7', defaultImageUrl: _u('1482049016688-2d3e1b311543') };
+    return { emoji: '🍳', bgColor: '#FFFDE7', defaultImageUrl: `${MDB}/breakfast.png` };
   if (_match(t, 'arroz', 'chaufa', 'fideo', 'pasta', 'alfredo'))
-    return { emoji: '🍚', bgColor: '#F9FBE7', defaultImageUrl: _u('1555949258-eb67b1ef0ceb') };
+    return { emoji: '🍚', bgColor: '#F9FBE7', defaultImageUrl: `${MDB}/pasta.png` };
   if (_match(t, 'ensalada', 'lechuga', 'tomate'))
-    return { emoji: '🥙', bgColor: '#E8F5E9', defaultImageUrl: _u('1512621776951-a57141f2eefd') };
+    return { emoji: '🥙', bgColor: '#E8F5E9', defaultImageUrl: `${MDB}/vegetarian.png` };
   if (_match(t, 'poroto', 'lenteja', 'garbanzo'))
-    return { emoji: '🫘', bgColor: '#EFEBE9', defaultImageUrl: _u('1506976785307-8732e854ad03') };
+    return { emoji: '🫘', bgColor: '#EFEBE9', defaultImageUrl: `${MDB}/vegan.png` };
   if (_match(t, 'fajita', 'taco'))
-    return { emoji: '🌮', bgColor: '#FFF8E1', defaultImageUrl: _u('1565299585323-38d6b0865b47') };
+    return { emoji: '🌮', bgColor: '#FFF8E1', defaultImageUrl: `${MDB}/miscellaneous.png` };
   if (receta.esFitness)
-    return { emoji: '💪', bgColor: '#E0F7FA', defaultImageUrl: _u('1490645935967-10de6ba17061') };
+    return { emoji: '💪', bgColor: '#E0F7FA', defaultImageUrl: `${MDB}/starter.png` };
 
-  return { emoji: '🍽️', bgColor: '#F5F5F5', defaultImageUrl: _u('1504674900247-0877df9cc836') };
+  return { emoji: '🍽️', bgColor: '#F5F5F5', defaultImageUrl: `${MDB}/miscellaneous.png` };
 }
 
 export interface TagFitness {
@@ -79,11 +81,6 @@ export function escalarMacros(macros: Macros, factor: number): Macros {
   };
 }
 
-/**
- * Valida que las calorías declaradas en una receta coincidan (±10%) con las
- * calculadas desde sus macros: proteínas×4 + carbos×4 + grasas×9.
- * Solo emite warning en entorno de desarrollo.
- */
 export function validarCaloriasReceta(receta: Receta): void {
   if (!__DEV__ || !receta.macros || !receta.calorias) return;
   const kcalCalculadas =
@@ -99,7 +96,6 @@ export function validarCaloriasReceta(receta: Receta): void {
   }
 }
 
-/** Valida todas las recetas en lote. Llámalo en desarrollo al montar la app. */
 export function validarTodasLasRecetas(recetas: Receta[]): void {
   if (!__DEV__) return;
   recetas.forEach(validarCaloriasReceta);

@@ -121,16 +121,18 @@ export function BuscadorProductoScreen() {
           onPress={() => tieneMultiples && toggleExpandido(item.id)}
           activeOpacity={tieneMultiples ? 0.7 : 1}
         >
-          {item.imageUrl && !imgErrors[item.id] ? (
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={s.cardImagen}
-              resizeMode="contain"
-              onError={() => setImgErrors((prev) => ({ ...prev, [item.id]: true }))}
-            />
-          ) : item.imageUrl ? (
-            <View style={[s.cardImagen, s.cardImagenPlaceholder]} />
-          ) : null}
+          <View style={s.cardImagenBox}>
+            {item.imageUrl && !imgErrors[item.id] ? (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={s.cardImagenImg}
+                resizeMode="contain"
+                onError={() => setImgErrors((prev) => ({ ...prev, [item.id]: true }))}
+              />
+            ) : (
+              <Text style={s.cardImagenFallback}>🛒</Text>
+            )}
+          </View>
           <View style={s.cardInfo}>
             <View style={s.cardTituloFila}>
               <Text style={s.cardNombre} numberOfLines={1}>{item.nombre}</Text>
@@ -350,8 +352,18 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     elevation: 2,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, gap: 10 },
-  cardImagen: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#F5F5F5' },
-  cardImagenPlaceholder: { backgroundColor: '#EEEEEE' },
+  cardImagenBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  cardImagenImg: { width: 56, height: 56 },
+  cardImagenFallback: { fontSize: 26 },
   cardInfo: { flex: 1 },
   cardTituloFila: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   cardNombre: { fontSize: 15, fontWeight: '700', color: C.text, flex: 1 },
