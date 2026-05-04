@@ -14,7 +14,7 @@ function mapearProducto(p: any): Producto {
     nombre: p.nombre,
     marca: p.marca ?? '',
     formato: p.formato ?? '',
-    imageUrl: p.imageUrl ?? p.foto,
+    imageUrl: p.imageUrl || p.image || p.foto || undefined,
     precios: (p.precios ?? []).map((pr: any) => ({
       supermercado: pr.supermercado,
       precio: pr.precio,
@@ -49,6 +49,10 @@ async function buscarEnAPI(query: string): Promise<ResultadoBusqueda> {
       .filter(Boolean);
 
     return { productos, supermercadosNoDisponibles };
+  } catch (err: any) {
+    const url = `${SCRAPING_API_URL}/buscar?q=${encodeURIComponent(query)}`;
+    console.error(`[scraping] ERROR fetching ${url} →`, err?.message ?? err);
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -60,8 +64,8 @@ export async function buscarProductos(query: string): Promise<ResultadoBusqueda>
     if (resultado.productos.length > 0 || resultado.supermercadosNoDisponibles.length > 0) {
       return resultado;
     }
-  } catch {
-    // red caída o timeout → devolver vacío para que el componente muestre "sin resultados"
+  } catch (err: any) {
+    console.error('[scraping] buscarProductos falló, devolviendo vacío:', err?.message ?? err);
   }
 
   return { productos: [], supermercadosNoDisponibles: [] };

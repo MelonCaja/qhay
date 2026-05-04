@@ -17,9 +17,9 @@ const { buscarEnM10 } = require('./scrapers/m10');
 const { buscarEnAlvi } = require('./scrapers/alvi'); 
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '20mb' })); // boletas en base64 pueden ser grandes
-app.use(express.json());
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.options('*', cors());
+app.use(express.json({ limit: '20mb' }));
 
 const PORT = process.env.PORT || 3000;
 
@@ -224,16 +224,10 @@ Reglas:
 });
 
 app.listen(PORT, () => {
-<<<<<<< HEAD
-  console.log(`🛒 Qhay API escuchando en http://localhost:${PORT}`);
-  console.log(`  GET  /buscar?q=leche`);
-  console.log(`  POST /analizar-boleta`);
-  console.log(`  GET  /health`);
-  console.log(`  Scrapers Activos: Jumbo, Santa Isabel, Unimarc, Lider, M10, Alvi`);
-});
-=======
   if (process.env.NODE_ENV !== 'production') {
     console.log(`🛒 Qhay API escuchando en http://localhost:${PORT}`);
+    console.log(`  GET  /buscar?q=leche`);
+    console.log(`  POST /analizar-boleta`);
+    console.log(`  GET  /health`);
   }
 });
->>>>>>> 01804cc (feat: MVP completo — seguridad, Firebase migration, EAS deployment)
