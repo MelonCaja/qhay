@@ -1,83 +1,68 @@
-// services/scraping.ts
 import { Producto } from '../types/producto';
 
-const SCRAPING_API_URL = 'https://qhay.vercel.app';
+const SCRAPING_API_URL = 'https://qhay-api.vercel.app';
+const TIMEOUT_MS = 8000;
 
-/**
- * Normaliza texto (insensible a mayúsculas y tildes)
- */
-function normalizar(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+export interface ResultadoBusqueda {
+  productos: Producto[];
+  supermercadosNoDisponibles: string[];
 }
 
-/**
- * Busca en la API real y transforma la respuesta al tipo Producto
- */
-async function buscarEnAPI(query: string): Promise<Producto[]> {
-  const url = `${SCRAPING_API_URL}/buscar?q=${encodeURIComponent(query)}`;
+function mapearProducto(p: any): Producto {
+  return {
+    id: p.id,
+    nombre: p.nombre,
+    marca: p.marca ?? '',
+    formato: p.formato ?? '',
+    imageUrl: p.imageUrl ?? p.foto,
+    precios: (p.precios ?? []).map((pr: any) => ({
+      supermercado: pr.supermercado,
+      precio: pr.precio,
+      enOferta: pr.enOferta ?? false,
+      precioLista: pr.precioLista,
+      ultimaActualizacion: new Date(pr.ultimaActualizacion ?? Date.now()),
+    })),
+  };
+}
 
-  // Timeout manual
+async function buscarEnAPI(query: string): Promise<ResultadoBusqueda> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`API error ${res.status}`);
-    const data = await res.json();
+    const res = await fetch(
+      `${SCRAPING_API_URL}/buscar?q=${encodeURIComponent(query)}`,
+      { signal: controller.signal }
+    );
 
-    return (data.productos ?? []).map((p: any): Producto => ({
-      id: p.id,
-      nombre: p.nombre,
-      marca: p.marca,
-      formato: p.formato ?? '',
-      precios: (p.precios ?? []).map((pr: any) => ({
-        supermercado: pr.supermercado,
-        precio: pr.precio,
-        enOferta: pr.enOferta ?? false,
-        ultimaActualizacion: new Date(pr.ultimaActualizacion ?? Date.now()),
-      })),
-    }));
-  } catch (err) {
-    console.warn('[scraping] Error API:', err);
-    // fallback mock simple
-    return [
-      {
-        id: 'mock1',
-        nombre: 'Producto Mock',
-        marca: 'Marca Mock',
-        formato: '1 unidad',
-        precios: [{ supermercado: 'MockMarket', precio: 1000, enOferta: false, ultimaActualizacion: new Date() }],
-      },
-    ];
+    if (!res.ok) throw new Error(`API ${res.status}`);
+
+    const data = await res.json();
+    const productos: Producto[] = (data.productos ?? []).map(mapearProducto);
+
+    // Extraer nombres legibles de scrapers fallidos desde los mensajes de error
+    const supermercadosNoDisponibles: string[] = (data.scrapers?.errores ?? [])
+      .map((msg: string) => {
+        const match = msg.match(/^([A-Za-z\s]+)\s+(temporalmente|API)/i);
+        return match ? match[1].trim() : null;
+      })
+      .filter(Boolean);
+
+    return { productos, supermercadosNoDisponibles };
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timer);
   }
 }
 
-/**
- * Función principal exportada
- */
-export async function buscarProductos(query: string): Promise<Producto[]> {
-  // Pequeña latencia simulada
-  await new Promise((r) => setTimeout(r, 300));
-
-  if (SCRAPING_API_URL) {
-    try {
-      const apiResults = await buscarEnAPI(query);
-      if (apiResults.length > 0) return apiResults;
-    } catch (err) {
-      console.warn('[scraping] API no disponible:', err);
+export async function buscarProductos(query: string): Promise<ResultadoBusqueda> {
+  try {
+    const resultado = await buscarEnAPI(query);
+    if (resultado.productos.length > 0 || resultado.supermercadosNoDisponibles.length > 0) {
+      return resultado;
     }
+  } catch {
+    // red caída o timeout → devolver vacío para que el componente muestre "sin resultados"
   }
 
-  // fallback inline (no falla por undefined)
-  return [
-    {
-      id: 'mock2',
-      nombre: query,
-      marca: '',
-      formato: '',
-      precios: [{ supermercado: 'MockMarket', precio: 0, enOferta: false, ultimaActualizacion: new Date() }],
-    },
-  ];
+  return { productos: [], supermercadosNoDisponibles: [] };
 }

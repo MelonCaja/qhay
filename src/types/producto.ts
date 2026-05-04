@@ -13,6 +13,7 @@ export interface Producto {
   marca: string;
   formato: string;
   foto?: string;
+  imageUrl?: string;
   precios: PrecioSupermercado[];
 }
 

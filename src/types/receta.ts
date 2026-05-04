@@ -13,6 +13,12 @@ export interface IngredienteReceta {
   disponibleEnDespensa?: boolean;
 }
 
+export interface Macros {
+  readonly proteinas: number;     // g por porción
+  readonly carbohidratos: number; // g por porción
+  readonly grasas: number;        // g por porción
+}
+
 export interface Receta {
   id: string;
   nombre: string;
@@ -25,6 +31,8 @@ export interface Receta {
   dificultad: 'facil' | 'media' | 'dificil';
   porciones: number;
   calorias?: number;
+  macros?: Macros;
+  esFitness?: boolean; // alta proteína o baja en calorías
   restricciones: string[]; // vegetariano, vegano, sin-gluten, sin-lactosa
   temporada?: string[];
   porcentajeCoincidencia?: number;

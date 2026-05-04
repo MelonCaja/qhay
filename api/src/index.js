@@ -87,9 +87,18 @@ app.get('/health', (req, res) => {
   res.json({ ok: true, version: '1.1.0', ts: new Date().toISOString() });
 });
 
-// Endpoint de Búsqueda de Productos con Scraping
+// Strips HTML tags, control chars, and limits length — prevents reflected XSS / prompt injection
+function sanitizarQuery(raw) {
+  return String(raw)
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^\p{L}\p{N}\s\-.,()]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 100);
+}
+
 app.get('/buscar', async (req, res) => {
-  const q = (req.query.q ?? '').trim();
+  const q = sanitizarQuery(req.query.q ?? '');
   if (!q || q.length < 2) {
     return res.status(400).json({ error: 'Parámetro q requerido (mínimo 2 caracteres)' });
   }
@@ -215,9 +224,16 @@ Reglas:
 });
 
 app.listen(PORT, () => {
+<<<<<<< HEAD
   console.log(`🛒 Qhay API escuchando en http://localhost:${PORT}`);
   console.log(`  GET  /buscar?q=leche`);
   console.log(`  POST /analizar-boleta`);
   console.log(`  GET  /health`);
   console.log(`  Scrapers Activos: Jumbo, Santa Isabel, Unimarc, Lider, M10, Alvi`);
 });
+=======
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🛒 Qhay API escuchando en http://localhost:${PORT}`);
+  }
+});
+>>>>>>> 01804cc (feat: MVP completo — seguridad, Firebase migration, EAS deployment)

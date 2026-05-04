@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Alert, Modal, TextInput, StatusBar,
@@ -11,6 +11,8 @@ import { Button } from '../../components/common/Button';
 import { useDespensa } from '../../hooks/useDespensa';
 import { useAsistente } from '../../hooks/useAsistente';
 import { useAuthStore } from '../../store/authStore';
+import { useFavoritosStore } from '../../store/favoritosStore';
+import { escalarMacros, obtenerTagsFitness, validarCaloriasReceta } from '../../utils/fitnessUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DetalleReceta'>;
 
@@ -20,10 +22,16 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
   const { receta } = route.params;
   const { ingredientes, eliminar } = useDespensa();
   const { usuario } = useAuthStore();
+  const { toggleFavorito, esFavorito } = useFavoritosStore();
   const [pasoActual, setPasoActual] = useState(0);
   const [mostrarEquiv, setMostrarEquiv] = useState(false);
   const [modalAsistente, setModalAsistente] = useState(false);
   const [pregunta, setPregunta] = useState('');
+  const [porcionesActuales, setPorcionesActuales] = useState(receta.porciones);
+
+  useEffect(() => {
+    validarCaloriasReceta(receta);
+  }, [receta.id]);
 
   const { preguntar, respuesta, cargando: cargandoIA } = useAsistente({
     despensa: ingredientes,
@@ -31,6 +39,12 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
     pasoActual: pasoActual + 1,
     restricciones: usuario?.restriccionesAlimentarias ?? [],
   });
+
+  const factorEscala = receta.porciones > 0 ? porcionesActuales / receta.porciones : 1;
+  const caloriasEscaladas = receta.calorias ? Math.round(receta.calorias * factorEscala) : undefined;
+  const macrosEscalados = receta.macros ? escalarMacros(receta.macros, factorEscala) : undefined;
+  const tagsFitness = obtenerTagsFitness(receta.macros);
+  const favorito = esFavorito(receta.id);
 
   const ingredientesConEstado = receta.ingredientes.map((ing) => ({
     ...ing,
@@ -60,6 +74,13 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
     ]);
   };
 
+  const handleToggleFavorito = () => {
+    toggleFavorito(receta.id);
+    if (!favorito && receta.esFitness) {
+      Alert.alert('⭐ Guardado en Mis Metas', 'Esta receta ahora aparece en tu sección Mis Metas dentro de Perfil.');
+    }
+  };
+
   const colorDificultad = receta.dificultad === 'facil' ? C.success : receta.dificultad === 'media' ? C.warning : C.error;
 
   return (
@@ -69,6 +90,9 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
         {/* Hero */}
         <View style={s.hero}>
           <Text style={s.heroEmoji}>🍽️</Text>
+          <TouchableOpacity style={s.btnFav} onPress={handleToggleFavorito} activeOpacity={0.7}>
+            <Text style={s.btnFavTexto}>{favorito ? '❤️' : '🤍'}</Text>
+          </TouchableOpacity>
           <View style={s.heroOverlay}>
             <Text style={s.heroNombre}>{receta.nombre}</Text>
             <Text style={s.heroDesc}>{receta.descripcion}</Text>
@@ -81,15 +105,80 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
             `⏱ ${receta.tiempoPreparacion} min`,
             receta.dificultad,
             `👥 ${receta.porciones} porciones`,
-            receta.calorias ? `🔥 ${receta.calorias} kcal` : null,
+            caloriasEscaladas ? `🔥 ${caloriasEscaladas} kcal` : null,
           ].filter(Boolean).map((txt, i) => (
-            <View key={i} style={s.infoChip}>
-              <Text style={[s.infoTexto, i === 1 && { color: colorDificultad, textTransform: 'capitalize' }]}>
+            <View key={i} style={[s.infoChip, caloriasEscaladas && i === 3 && s.infoChipCalorias]}>
+              <Text style={[s.infoTexto, i === 1 && { color: colorDificultad, textTransform: 'capitalize' }, caloriasEscaladas && i === 3 && s.infoTextoCalorias]}>
                 {txt}
               </Text>
             </View>
           ))}
+          {receta.esFitness && (
+            <View style={s.infoChipFitness}>
+              <Text style={s.infoTextoFitness}>💪 Apto fitness</Text>
+            </View>
+          )}
         </View>
+
+        {/* Tags fitness dinámicos */}
+        {tagsFitness.length > 0 && (
+          <View style={s.tagsFila}>
+            {tagsFitness.map((tag) => (
+              <View key={tag.label} style={[s.tagChip, { backgroundColor: tag.bgColor }]}>
+                <Text style={[s.tagTexto, { color: tag.color }]}>{tag.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Macros con Smart Scaling */}
+        {macrosEscalados && (
+          <View style={s.macrosContenedor}>
+            <View style={s.macrosHeader}>
+              <Text style={s.macrosTitulo}>Macros por porción</Text>
+              <View style={s.stepper}>
+                <TouchableOpacity
+                  style={s.stepperBtn}
+                  onPress={() => setPorcionesActuales(Math.max(1, porcionesActuales - 1))}
+                >
+                  <Text style={s.stepperBtnTexto}>−</Text>
+                </TouchableOpacity>
+                <Text style={s.stepperValor}>{porcionesActuales}</Text>
+                <TouchableOpacity
+                  style={s.stepperBtn}
+                  onPress={() => setPorcionesActuales(Math.min(12, porcionesActuales + 1))}
+                >
+                  <Text style={s.stepperBtnTexto}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {porcionesActuales !== receta.porciones && (
+              <Text style={s.macrosNota}>
+                Escalado ×{(factorEscala).toFixed(1)} · base: {receta.porciones} porc.
+              </Text>
+            )}
+            <View style={s.macrosFila}>
+              {[
+                { label: 'Proteínas', valor: macrosEscalados.proteinas, color: '#4CAF50', emoji: '🥩' },
+                { label: 'Carbos', valor: macrosEscalados.carbohidratos, color: '#2196F3', emoji: '🌾' },
+                { label: 'Grasas', valor: macrosEscalados.grasas, color: '#FF9800', emoji: '🫒' },
+              ].map((macro) => {
+                const total = macrosEscalados.proteinas + macrosEscalados.carbohidratos + macrosEscalados.grasas;
+                const pct = total > 0 ? Math.round((macro.valor / total) * 100) : 0;
+                return (
+                  <View key={macro.label} style={s.macroItem}>
+                    <Text style={s.macroEmoji}>{macro.emoji}</Text>
+                    <View style={s.macroBarraFondo}>
+                      <View style={[s.macroBarraRelleno, { width: `${pct}%` as `${number}%`, backgroundColor: macro.color }]} />
+                    </View>
+                    <Text style={s.macroValor}>{macro.valor}g</Text>
+                    <Text style={s.macroLabel}>{macro.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* Coincidencia */}
         {disponibles > 0 && (
@@ -205,9 +294,33 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   heroOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.55)', padding: 16 },
   heroNombre: { fontSize: 22, fontWeight: '800', color: '#fff' },
   heroDesc: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  btnFav: { position: 'absolute', top: 12, right: 12, padding: 8, zIndex: 10 },
+  btnFavTexto: { fontSize: 26 },
   infoFila: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 8, backgroundColor: C.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
   infoChip: { backgroundColor: C.bg, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 },
+  infoChipCalorias: { backgroundColor: '#FFF3E0' },
+  infoChipFitness: { backgroundColor: '#E8F5E9', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 },
   infoTexto: { fontSize: 12, fontWeight: '600', color: C.text, textTransform: 'capitalize' },
+  infoTextoCalorias: { color: '#E65100' },
+  infoTextoFitness: { fontSize: 12, fontWeight: '700', color: '#2E7D32' },
+  tagsFila: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, gap: 8, backgroundColor: C.surface },
+  tagChip: { borderRadius: 20, paddingVertical: 4, paddingHorizontal: 12 },
+  tagTexto: { fontSize: 12, fontWeight: '700' },
+  macrosContenedor: { margin: 16, backgroundColor: C.surface, borderRadius: 16, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  macrosHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  macrosTitulo: { fontSize: 15, fontWeight: '700', color: C.text },
+  macrosNota: { fontSize: 11, color: C.textMuted, marginBottom: 10, fontStyle: 'italic' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.bg, borderRadius: 10, padding: 4 },
+  stepperBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  stepperBtnTexto: { fontSize: 18, color: C.primary, fontWeight: '700', lineHeight: 22 },
+  stepperValor: { fontSize: 15, fontWeight: '700', color: C.text, minWidth: 20, textAlign: 'center' },
+  macrosFila: { gap: 10, marginTop: 10 },
+  macroItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  macroEmoji: { fontSize: 16, width: 22 },
+  macroBarraFondo: { flex: 1, height: 8, backgroundColor: C.border, borderRadius: 4, overflow: 'hidden' },
+  macroBarraRelleno: { height: '100%', borderRadius: 4 },
+  macroValor: { fontSize: 12, fontWeight: '700', color: C.text, minWidth: 34, textAlign: 'right' },
+  macroLabel: { fontSize: 11, color: C.textMuted, minWidth: 62 },
   coincidencia: { margin: 16, backgroundColor: C.primarySoft, borderRadius: 12, padding: 12 },
   coincidenciaTexto: { color: C.primary, fontWeight: '600', fontSize: 14 },
   seccion: { padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },

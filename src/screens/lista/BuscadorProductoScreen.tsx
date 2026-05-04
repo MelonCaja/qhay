@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TextInput, TouchableOpacity, Alert, StatusBar, Modal, Pressable
+  TextInput, TouchableOpacity, Alert, StatusBar, Modal, Pressable, Image
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
@@ -22,6 +22,7 @@ export function BuscadorProductoScreen() {
   const [query, setQuery] = useState('');
   const [categoriaSel, setCategoriaSel] = useState<string | null>(null);
   const [resultados, setResultados] = useState<Producto[]>([]);
+  const [noDisponibles, setNoDisponibles] = useState<string[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [modalCategorias, setModalCategorias] = useState(false);
@@ -31,18 +32,14 @@ export function BuscadorProductoScreen() {
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!query.trim()) { setResultados([]); return; }
+    if (!query.trim()) { setResultados([]); setNoDisponibles([]); return; }
 
     timerRef.current = setTimeout(async () => {
       setBuscando(true);
       try {
-        const res = await buscarProductos(query);
-        console.log('API resultados:', res); // 👈 ver qué llega
-        setResultados(res);
-      } catch (err) {
-        console.error('Error al buscar productos:', err);
-        Alert.alert('Error', 'No se pudieron obtener los productos. Revisa tu conexión.');
-        setResultados([]);
+        const { productos, supermercadosNoDisponibles } = await buscarProductos(query);
+        setResultados(productos);
+        setNoDisponibles(supermercadosNoDisponibles);
       } finally {
         setBuscando(false);
       }
@@ -71,7 +68,6 @@ export function BuscadorProductoScreen() {
       try {
         idFinal = await agregarItemLista(usuario.id, itemData);
       } catch (err) {
-        console.error('Error al guardar en firestore', err);
       }
     }
 
@@ -101,9 +97,7 @@ export function BuscadorProductoScreen() {
     if (usuario) {
       try {
         idFinal = await agregarItemLista(usuario.id, itemData);
-      } catch (err) {
-        console.error('Error al guardar en firestore', err);
-      }
+      } catch { /* mantiene id local si falla Firestore */ }
     }
 
     agregarItem({ ...itemData, id: idFinal });
@@ -126,6 +120,9 @@ export function BuscadorProductoScreen() {
           onPress={() => tieneMultiples && toggleExpandido(item.id)}
           activeOpacity={tieneMultiples ? 0.7 : 1}
         >
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={s.cardImagen} resizeMode="contain" />
+          ) : null}
           <View style={s.cardInfo}>
             <View style={s.cardTituloFila}>
               <Text style={s.cardNombre} numberOfLines={1}>{item.nombre}</Text>
@@ -255,6 +252,14 @@ export function BuscadorProductoScreen() {
         </View>
       )}
 
+      {!buscando && noDisponibles.length > 0 && (
+        <View style={s.warningBanner}>
+          <Text style={s.warningTexto}>
+            ⚠️ {noDisponibles.join(', ')} temporalmente no disponible{noDisponibles.length > 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
+
       {!buscando && resultados.length > 0 && (
         <View style={s.resultadosHeader}>
           <Text style={s.resultadosCount}>{resultados.length} productos encontrados</Text>
@@ -310,6 +315,17 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   search: { flex: 1, paddingVertical: 13, fontSize: 15, color: C.text },
   clearBtn: { padding: 4 },
   clearTexto: { color: C.textMuted, fontSize: 13 },
+  warningBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: '#FFF8E1',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFA000',
+  },
+  warningTexto: { fontSize: 12, color: '#5D4037', fontWeight: '500' },
   resultadosHeader: { paddingHorizontal: 16, paddingBottom: 8 },
   resultadosCount: { fontSize: 13, fontWeight: '600', color: C.text },
   resultadosTip: { fontSize: 12, color: C.textMuted, marginTop: 2 },
@@ -325,7 +341,8 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, gap: 10 },
+  cardImagen: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#F5F5F5' },
   cardInfo: { flex: 1 },
   cardTituloFila: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   cardNombre: { fontSize: 15, fontWeight: '700', color: C.text, flex: 1 },

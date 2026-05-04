@@ -30,7 +30,13 @@ async function buscarVTEX(account, supermercado, query) {
     },
     timeout: 10000,
   });
-  if (!res.ok) throw new Error(`${supermercado} API error: ${res.status}`);
+  if (res.status === 403 || res.status === 401) {
+    throw new Error(`${supermercado} temporalmente no disponible (acceso restringido)`);
+  }
+  if (res.status === 404) {
+    throw new Error(`${supermercado} temporalmente no disponible (endpoint no encontrado)`);
+  }
+  if (!res.ok) throw new Error(`${supermercado} temporalmente no disponible (${res.status})`);
   const data = await res.json();
 
   return data.map((item) => {

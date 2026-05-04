@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -9,14 +9,18 @@ import { VencimientoAlert } from '../../components/despensa/VencimientoAlert';
 import { useDespensa } from '../../hooks/useDespensa';
 import { useRecetas } from '../../hooks/useRecetas';
 import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../hooks/useAuth';
+import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 export function HomeScreen() {
   const C = useColors();
   const s = makeStyles(C);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { usuario } = useAuthStore();
-  const { ingredientes, proxAVencer } = useDespensa();
-  const { recetas } = useRecetas(ingredientes, {
+  const { emailVerificado, reenviarVerificacion, recargarVerificacion } = useAuth();
+  const [reenviando, setReenviando] = useState(false);
+  const { ingredientes, proxAVencer, cargando: cargandoDespensa } = useDespensa();
+  const { recetas, cargando: cargandoRecetas } = useRecetas(ingredientes, {
     tab: 'despensa',
     restricciones: usuario?.restriccionesAlimentarias ?? [],
   });
@@ -26,9 +30,52 @@ export function HomeScreen() {
   const hora = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
 
+  if (cargandoDespensa || cargandoRecetas) {
+    return <LoadingSpinner pantalla mensaje="Cargando tu cocina..." />;
+  }
+
+  const handleReenviar = async () => {
+    setReenviando(true);
+    try {
+      await reenviarVerificacion();
+      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada (y spam).');
+    } catch {
+      Alert.alert('Error', 'No se pudo enviar el correo. Intenta más tarde.');
+    } finally {
+      setReenviando(false);
+    }
+  };
+
+  const handleYaVerifique = async () => {
+    const ok = await recargarVerificacion();
+    if (!ok) Alert.alert('Aún sin verificar', 'Haz clic en el enlace del correo que te enviamos y vuelve a intentarlo.');
+  };
+
   return (
     <View style={s.contenedor}>
       <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+
+      {/* Banner bloqueante: solo si hay sesión activa y el correo no está verificado */}
+      {usuario && !emailVerificado && (
+        <View style={s.verificacionBanner}>
+          <Text style={s.verificacionEmoji}>📧</Text>
+          <View style={s.verificacionTextos}>
+            <Text style={s.verificacionTitulo}>Verifica tu correo</Text>
+            <Text style={s.verificacionSub}>
+              Enviamos un enlace a {usuario.email}. Revisa tu bandeja de entrada y spam.
+            </Text>
+            <View style={s.verificacionBtns}>
+              <TouchableOpacity onPress={handleYaVerifique} style={s.btnVerificado}>
+                <Text style={s.btnVerificadoTexto}>Ya verifiqué</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleReenviar} disabled={reenviando} style={s.btnReenviar}>
+                <Text style={s.btnReenviarTexto}>{reenviando ? 'Enviando…' : 'Reenviar'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
@@ -156,6 +203,35 @@ export function HomeScreen() {
 
 const makeStyles = (C: ColorPalette) => StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: C.bg },
+  verificacionBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF8E1',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE082',
+    padding: 14,
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  verificacionEmoji: { fontSize: 22, marginTop: 2 },
+  verificacionTextos: { flex: 1, gap: 4 },
+  verificacionTitulo: { fontSize: 14, fontWeight: '700', color: '#5D4037' },
+  verificacionSub: { fontSize: 12, color: '#6D4C41', lineHeight: 17 },
+  verificacionBtns: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  btnVerificado: {
+    backgroundColor: '#FFA000',
+    borderRadius: 100,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  btnVerificadoTexto: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  btnReenviar: {
+    borderWidth: 1,
+    borderColor: '#FFA000',
+    borderRadius: 100,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  btnReenviarTexto: { color: '#FFA000', fontSize: 12, fontWeight: '700' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

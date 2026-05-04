@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthNavigator } from './AuthNavigator';
 import { TabNavigator } from './TabNavigator';
 import { OnboardingScreen } from '../screens/auth/OnboardingScreen';
+import { EmailVerificationScreen } from '../screens/auth/EmailVerificationScreen';
 import { DetalleRecetaScreen } from '../screens/recetas/DetalleRecetaScreen';
 import { AgregarIngredienteScreen } from '../screens/despensa/AgregarIngredienteScreen';
 import { ScanearBoletaScreen } from '../screens/despensa/ScanearBoletaScreen';
@@ -18,6 +19,7 @@ import { Receta } from '../types/receta';
 
 export type RootStackParamList = {
   Auth: undefined;
+  EmailVerification: undefined;
   Onboarding: undefined;
   Main: undefined;
   DetalleReceta: { receta: Receta };
@@ -32,7 +34,7 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
-  const { usuario, cargando } = useAuth();
+  const { usuario, cargando, emailVerificado } = useAuth();
 
   if (cargando) {
     return <LoadingSpinner pantalla mensaje="Cargando Qhay..." />;
@@ -42,10 +44,10 @@ export function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!usuario ? (
-          // Usuario no autenticado
           <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : !emailVerificado ? (
+          <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
         ) : !usuario.onboardingCompletado ? (
-          // Onboarding pendiente
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : (
           // App principal

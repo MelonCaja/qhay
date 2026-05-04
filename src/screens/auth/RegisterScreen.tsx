@@ -39,6 +39,11 @@ export function RegisterScreen({ navigation }: Props) {
     setCargando(true);
     try {
       await registrarUsuario(email.trim(), password, nombre.trim());
+      Alert.alert(
+        '¡Cuenta creada! 📧',
+        `Te enviamos un correo de verificación a ${email.trim()}. Revisa tu bandeja de entrada (y spam) antes de continuar.`,
+        [{ text: 'Entendido', style: 'default' }]
+      );
     } catch (error: unknown) {
       const code = (error as { code?: string }).code;
       Alert.alert('Error', code === 'auth/email-already-in-use'

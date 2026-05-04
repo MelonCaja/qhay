@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, Switch, StatusBar,
+  TouchableOpacity, Alert, Switch, StatusBar, Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +10,9 @@ import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { actualizarUsuario } from '../../services/firestore';
 import { useDespensa } from '../../hooks/useDespensa';
+import { useFavoritosStore } from '../../store/favoritosStore';
+import { getRecetas } from '../../services/recipeService';
+import { Receta } from '../../types/receta';
 
 const RESTRICCIONES = [
   { id: 'vegetariano', label: 'Vegetariano' },
@@ -24,7 +27,15 @@ export function PerfilScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { usuario, logout, actualizarUsuario: actualizarStore } = useAuth();
   const { ingredientes } = useDespensa();
+  const { favoritos, esFavorito } = useFavoritosStore();
   const [guardando, setGuardando] = useState(false);
+  const [recetas, setRecetas] = useState<Receta[]>([]);
+
+  useEffect(() => {
+    getRecetas().then(setRecetas).catch(() => {});
+  }, []);
+
+  const metasFavoritas = recetas.filter((r) => r.esFitness && esFavorito(r.id));
 
   if (!usuario) return null;
 
@@ -118,6 +129,40 @@ export function PerfilScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Mis Metas */}
+        {metasFavoritas.length > 0 && (
+          <View style={s.seccion}>
+            <Text style={s.seccionTitulo}>⭐ Mis metas fitness</Text>
+            {metasFavoritas.map((r, i) => (
+              <View key={r.id} style={[s.fila, i < metasFavoritas.length - 1 && s.filaConSep]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.filaLabel}>{r.nombre}</Text>
+                  {r.macros && (
+                    <Text style={s.filaSub}>
+                      P {r.macros.proteinas}g · C {r.macros.carbohidratos}g · G {r.macros.grasas}g
+                    </Text>
+                  )}
+                </View>
+                {r.calorias != null && (
+                  <Text style={s.metaCal}>🔥 {r.calorias} kcal</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Feedback */}
+        <TouchableOpacity
+          style={s.btnFeedback}
+          onPress={() => Linking.openURL(
+            'mailto:gunsdghost@gmail.com' +
+            '?subject=' + encodeURIComponent('Feedback Qhay') +
+            '&body=' + encodeURIComponent('Hola! Quiero compartir mi experiencia con Qhay:\n\n')
+          )}
+        >
+          <Text style={s.btnFeedbackTexto}>💬 Enviar Feedback</Text>
+        </TouchableOpacity>
 
         {/* Acciones */}
         <View style={s.acciones}>
@@ -214,6 +259,18 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
   },
   btnBAESTexto: { color: C.primary, fontWeight: '600', fontSize: 13 },
+  btnFeedback: {
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: C.primary + '50',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  btnFeedbackTexto: { color: C.primary, fontWeight: '700', fontSize: 15 },
   acciones: { gap: 8 },
   btnSalir: {
     backgroundColor: C.surface,
@@ -229,4 +286,5 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   btnSalirTexto: { color: C.text, fontWeight: '600', fontSize: 15 },
   btnEliminar: { color: C.error, fontWeight: '600', fontSize: 14, textAlign: 'center', paddingVertical: 6 },
   version: { textAlign: 'center', color: C.border, fontSize: 12, marginTop: 8, marginBottom: 16 },
+  metaCal: { fontSize: 12, color: '#E65100', fontWeight: '600' },
 });

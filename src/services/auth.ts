@@ -4,6 +4,7 @@ import {
   signOut,
   updateProfile,
   onAuthStateChanged,
+  sendEmailVerification,
   GoogleAuthProvider,
   signInWithCredential,
   User,
@@ -43,7 +44,7 @@ export async function registrarUsuario(
 ): Promise<User> {
   const credencial = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credencial.user, { displayName: nombre });
-  // Crear documento en Firestore
+  await sendEmailVerification(credencial.user);
   await crearUsuarioEnFirestore(credencial.user.uid, {
     nombre,
     email,
@@ -62,6 +63,14 @@ export async function registrarUsuario(
 export async function iniciarSesion(email: string, password: string): Promise<User> {
   const credencial = await signInWithEmailAndPassword(auth, email, password);
   return credencial.user;
+}
+
+// Reenvía el correo de verificación al usuario actual
+export async function reenviarVerificacion(): Promise<void> {
+  const user = auth.currentUser;
+  if (user && !user.emailVerified) {
+    await sendEmailVerification(user);
+  }
 }
 
 // Cerrar sesión

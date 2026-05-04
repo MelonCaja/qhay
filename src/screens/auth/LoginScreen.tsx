@@ -42,8 +42,7 @@ export function LoginScreen({ navigation }: Props) {
     setCargando(true);
     try {
       await loginConGoogle(idToken);
-    } catch (err) {
-      console.error(err);
+    } catch {
       Alert.alert('Error', 'No pudimos iniciar sesión con Google.');
     } finally {
       setCargando(false);
