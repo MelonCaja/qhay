@@ -26,6 +26,7 @@ export function BuscadorProductoScreen() {
   const [buscando, setBuscando] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [modalCategorias, setModalCategorias] = useState(false);
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { agregarItem } = useListaStore();
   const { usuario } = useAuthStore();
@@ -120,8 +121,15 @@ export function BuscadorProductoScreen() {
           onPress={() => tieneMultiples && toggleExpandido(item.id)}
           activeOpacity={tieneMultiples ? 0.7 : 1}
         >
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={s.cardImagen} resizeMode="contain" />
+          {item.imageUrl && !imgErrors[item.id] ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={s.cardImagen}
+              resizeMode="contain"
+              onError={() => setImgErrors((prev) => ({ ...prev, [item.id]: true }))}
+            />
+          ) : item.imageUrl ? (
+            <View style={[s.cardImagen, s.cardImagenPlaceholder]} />
           ) : null}
           <View style={s.cardInfo}>
             <View style={s.cardTituloFila}>
@@ -343,6 +351,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8, gap: 10 },
   cardImagen: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#F5F5F5' },
+  cardImagenPlaceholder: { backgroundColor: '#EEEEEE' },
   cardInfo: { flex: 1 },
   cardTituloFila: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   cardNombre: { fontSize: 15, fontWeight: '700', color: C.text, flex: 1 },

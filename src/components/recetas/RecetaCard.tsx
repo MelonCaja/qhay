@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Receta } from '../../types/receta';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { obtenerTagsFitness, getRecetaVisual } from '../../utils/fitnessUtils';
@@ -18,6 +18,10 @@ export function RecetaCard({ receta, onPress, horizontal = false, enComparacion,
   const coincidencia = receta.porcentajeCoincidencia ?? 0;
   const tagsFitness = obtenerTagsFitness(receta.macros);
   const visual = getRecetaVisual(receta);
+  const [imgError, setImgError] = useState(false);
+
+  // Prioridad: imageUrl explícita > foto > imagen de referencia por categoría
+  const imageSource = receta.imageUrl || receta.foto || visual.defaultImageUrl;
 
   const colorCoincidencia =
     coincidencia >= 80 ? C.success :
@@ -37,7 +41,6 @@ export function RecetaCard({ receta, onPress, horizontal = false, enComparacion,
       delayLongPress={400}
       activeOpacity={0.8}
     >
-      {/* Overlay de selección para comparador */}
       {enComparacion && (
         <View style={s.comparacionOverlay}>
           <Text style={s.comparacionCheck}>✓</Text>
@@ -45,7 +48,16 @@ export function RecetaCard({ receta, onPress, horizontal = false, enComparacion,
       )}
 
       <View style={[s.foto, horizontal && s.fotoH, { backgroundColor: visual.bgColor }]}>
-        <Text style={s.emoji}>{visual.emoji}</Text>
+        {imageSource && !imgError ? (
+          <Image
+            source={{ uri: imageSource }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <Text style={s.emoji}>{visual.emoji}</Text>
+        )}
         {receta.esFitness && (
           <View style={s.badgeFitnessHero}>
             <Text style={s.badgeFitnessHeroTexto}>💪</Text>
@@ -66,7 +78,6 @@ export function RecetaCard({ receta, onPress, horizontal = false, enComparacion,
           )}
         </View>
 
-        {/* Tags fitness dinámicos */}
         {!horizontal && tagsFitness.length > 0 && (
           <View style={s.tagsFila}>
             {tagsFitness.map((tag) => (
@@ -123,14 +134,14 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   comparacionCheck: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  foto: { height: 130, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  foto: { height: 130, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   fotoH: { height: 100 },
   emoji: { fontSize: 44 },
   badgeFitnessHero: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 3,

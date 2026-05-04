@@ -9,6 +9,8 @@ export interface ResultadoBusqueda {
 }
 
 function mapearProducto(p: any): Producto {
+  // eslint-disable-next-line no-console
+  console.log('[scraping] Imagen recibida:', p.nombre, '→', p.imageUrl ?? p.image ?? p.foto ?? 'sin imagen');
   return {
     id: p.id,
     nombre: p.nombre,

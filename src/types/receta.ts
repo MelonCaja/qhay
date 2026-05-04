@@ -24,6 +24,7 @@ export interface Receta {
   nombre: string;
   descripcion: string;
   foto?: string;
+  imageUrl?: string;
   ingredientes: IngredienteReceta[];
   utensilios: string[];
   pasos: PasoReceta[];
