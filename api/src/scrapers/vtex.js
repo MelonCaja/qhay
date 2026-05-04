@@ -1,6 +1,5 @@
 /**
- * Helper compartido para scrapers VTEX (Jumbo, Santa Isabel, Unimarc, Lider)
- * Los precios están en item.items[0].sellers[0].commertialOffer, NO en el nivel de producto
+ * Helper compartido para scrapers VTEX optimizado con Imágenes
  */
 const fetch = require('node-fetch');
 
@@ -37,11 +36,16 @@ async function buscarVTEX(account, supermercado, query) {
   return data.map((item) => {
     const precio = extraerPrecio(item);
     if (!precio) return null;
+    
+    // Extracción robusta de imagen
+    const imageUrl = item.items?.[0]?.images?.[0]?.imageUrl || '';
+
     return {
       id: `${account}_${item.productId}`,
       nombre: item.productName ?? query,
       marca: item.brand ?? supermercado,
       formato: extraerFormato(item.productName, item.description),
+      imageUrl: imageUrl, // Imagen lista para la UI
       precios: [{ supermercado, ...precio, ultimaActualizacion: new Date().toISOString() }],
     };
   }).filter(Boolean);
