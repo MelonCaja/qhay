@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 
 function extraerFormato(nombre, desc) {
   const texto = `${nombre} ${desc ?? ''}`;
-  const m = texto.match(/\d+\s*(kg|g|ml|L|lt|cc|un|unidades?)/i);
+  const m = texto.match(/\d+([.,]\d+)?\s*(kg|g|ml|L|lt|cc|un|unidades?)/i);
   return m ? m[0].trim() : '';
 }
 
