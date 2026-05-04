@@ -40,7 +40,6 @@ async function buscarEnAPI(query: string): Promise<ResultadoBusqueda> {
     const data = await res.json();
     const productos: Producto[] = (data.productos ?? []).map(mapearProducto);
 
-    // Extraer nombres legibles de scrapers fallidos desde los mensajes de error
     const supermercadosNoDisponibles: string[] = (data.scrapers?.errores ?? [])
       .map((msg: string) => {
         const match = msg.match(/^([A-Za-z\s]+)\s+(temporalmente|API)/i);
