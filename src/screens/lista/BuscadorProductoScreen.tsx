@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TextInput, TouchableOpacity, Alert, StatusBar, Modal, Pressable, Image
+  TextInput, TouchableOpacity, Alert, StatusBar, Modal, Pressable
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
@@ -124,10 +125,15 @@ export function BuscadorProductoScreen() {
           <View style={s.cardImagenBox}>
             {item.imageUrl && !imgErrors[item.id] ? (
               <Image
-                source={{ uri: item.imageUrl }}
+                source={item.imageUrl}
                 style={s.cardImagenImg}
-                resizeMode="contain"
-                onError={() => setImgErrors((prev) => ({ ...prev, [item.id]: true }))}
+                contentFit="contain"
+                transition={150}
+                onLoad={() => console.log('[Producto:load]', item.nombre, item.imageUrl)}
+                onError={() => {
+                  console.error('[Producto:error]', item.nombre, item.imageUrl);
+                  setImgErrors((prev) => ({ ...prev, [item.id]: true }));
+                }}
               />
             ) : (
               <Text style={s.cardImagenFallback}>🛒</Text>

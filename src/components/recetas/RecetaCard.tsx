@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Receta } from '../../types/receta';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { obtenerTagsFitness, getRecetaVisual } from '../../utils/fitnessUtils';
@@ -20,7 +21,7 @@ export function RecetaCard({ receta, onPress, horizontal = false, enComparacion,
   const visual = getRecetaVisual(receta);
   const [imgError, setImgError] = useState(false);
 
-  // Prioridad: imageUrl explícita > foto > imagen de referencia por categoría
+  // Prioridad: imageUrl explícita > foto > imagen de referencia por categoría (TheMealDB)
   const imageSource = receta.imageUrl || receta.foto || visual.defaultImageUrl;
 
   const colorCoincidencia =
@@ -47,13 +48,19 @@ export function RecetaCard({ receta, onPress, horizontal = false, enComparacion,
         </View>
       )}
 
+      {/* Contenedor de imagen con dimensiones explícitas */}
       <View style={[s.foto, horizontal && s.fotoH, { backgroundColor: visual.bgColor }]}>
         {imageSource && !imgError ? (
           <Image
-            source={{ uri: imageSource }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-            onError={() => setImgError(true)}
+            source={imageSource}
+            style={s.fotoImagen}
+            contentFit="cover"
+            transition={200}
+            onLoad={() => console.log('[RecetaCard:load]', receta.nombre)}
+            onError={() => {
+              console.error('[RecetaCard:error]', receta.nombre, imageSource);
+              setImgError(true);
+            }}
           />
         ) : (
           <Text style={s.emoji}>{visual.emoji}</Text>
@@ -134,8 +141,20 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   comparacionCheck: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  foto: { height: 130, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  // Dimensiones explícitas — expo-image necesita width/height en el estilo, no en el padre
+  foto: {
+    height: 130,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   fotoH: { height: 100 },
+  // La imagen ocupa todo el contenedor de forma explícita
+  fotoImagen: {
+    width: '100%',
+    height: '100%',
+  },
   emoji: { fontSize: 44 },
   badgeFitnessHero: {
     position: 'absolute',
