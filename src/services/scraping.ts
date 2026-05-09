@@ -1,6 +1,6 @@
 import { Producto } from '../types/producto';
 
-const SCRAPING_API_URL = 'https://qhay-api.vercel.app';
+const SCRAPING_API_URL = 'https://qhay.vercel.app';
 // 25 s — la API scraping 6 supermercados en paralelo puede tardar en cold start
 const TIMEOUT_MS = 25_000;
 
