@@ -9,6 +9,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  increment,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -60,11 +61,20 @@ export async function agregarIngrediente(
 ): Promise<string> {
   const ref = await addDoc(collection(db, 'usuarios', uid, 'despensa'), {
     ...ingrediente,
+    frecuenciaUso: ingrediente.frecuenciaUso ?? 1,
     fechaVencimiento: ingrediente.fechaVencimiento
       ? Timestamp.fromDate(ingrediente.fechaVencimiento)
       : null,
   });
   return ref.id;
+}
+
+/** Incrementa el contador de uso de un ingrediente ya existente — 1 write, 0 reads */
+export async function incrementarFrecuencia(uid: string, ingredienteId: string): Promise<void> {
+  await updateDoc(
+    doc(db, 'usuarios', uid, 'despensa', ingredienteId),
+    { frecuenciaUso: increment(1) },
+  );
 }
 
 export async function eliminarIngrediente(uid: string, ingredienteId: string): Promise<void> {

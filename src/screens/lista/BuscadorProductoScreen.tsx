@@ -6,6 +6,8 @@ import {
 import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { agregarItemLista } from '../../services/firestore';
@@ -67,12 +69,14 @@ function matchesFiltro(producto: Producto, filtro: string): boolean {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function BuscadorProductoScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, 'BuscadorProducto'>;
+
+export function BuscadorProductoScreen({ route }: Props) {
   const C = useColors();
   const s = makeStyles(C);
   const navigation = useNavigation();
 
-  const [query, setQuery]                 = useState('');
+  const [query, setQuery]                 = useState(route?.params?.query ?? '');
   const [filtroCategoria, setFiltroCategoria] = useState<string | null>(null);
   const [resultados, setResultados]       = useState<Producto[]>([]);
   const [noDisponibles, setNoDisponibles] = useState<string[]>([]);

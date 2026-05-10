@@ -25,7 +25,7 @@ export type RootStackParamList = {
   DetalleReceta: { receta: Receta };
   AgregarIngrediente: undefined;
   ScanearBoleta: undefined;
-  BuscadorProducto: undefined;
+  BuscadorProducto: { query?: string } | undefined;
   MapaSupermercados: undefined;
   BAES: undefined;
   PasilloCategoriaScreen: { pasilloId: string; pasilloLabel: string };

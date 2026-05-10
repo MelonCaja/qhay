@@ -9,6 +9,7 @@ export interface Ingrediente {
   supermercado?: string;
   foto?: string;
   imageUrl?: string;
+  frecuenciaUso?: number;
   agregadoPor: 'manual' | 'boleta' | 'buscador';
   categoria?: string;
 }
