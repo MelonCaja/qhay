@@ -15,6 +15,7 @@ import { buscarProductos } from '../../services/scraping';
 import { Producto, PrecioSupermercado, ItemLista } from '../../types/producto';
 import { formatearPrecio } from '../../utils/precioHelper';
 import { CATEGORIAS_LISTA } from '../../constants/categorias';
+import { useDespensa } from '../../hooks/useDespensa';
 
 export function BuscadorProductoScreen() {
   const C = useColors();
@@ -31,6 +32,7 @@ export function BuscadorProductoScreen() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { agregarItem } = useListaStore();
   const { usuario } = useAuthStore();
+  const { agregar: agregarDespensa } = useDespensa();
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -82,6 +84,29 @@ export function BuscadorProductoScreen() {
           navigation.goBack();
       } }]
     );
+  };
+
+  const handleGuardarEnDespensa = async (producto: Producto, precio: PrecioSupermercado) => {
+    if (!usuario) {
+      Alert.alert('Inicia sesión', 'Necesitas una cuenta para guardar en la despensa.');
+      return;
+    }
+    try {
+      await agregarDespensa({
+        nombre: producto.nombre,
+        marca: producto.marca || undefined,
+        cantidad: 1,
+        unidad: producto.formato || 'unidad',
+        agregadoPor: 'buscador',
+        imageUrl: producto.imageUrl || undefined,
+        supermercado: precio.supermercado,
+        precioUnitario: precio.precio,
+        categoria: categoriaSel || undefined,
+      });
+      Alert.alert('¡Guardado!', `${producto.nombre} agregado a tu despensa.`);
+    } catch {
+      Alert.alert('Error', 'No se pudo guardar en la despensa.');
+    }
   };
 
   const handleAgregarManual = async () => {
@@ -159,9 +184,17 @@ export function BuscadorProductoScreen() {
             <Text style={s.precioValor}>{formatearPrecio(masBarato.precio)}</Text>
             <Text style={s.precioSup}>en {masBarato.supermercado}</Text>
           </View>
-          <TouchableOpacity style={s.btnAgregar} onPress={() => handleAgregar(item, masBarato)}>
-            <Text style={s.btnAgregarTexto}>+</Text>
-          </TouchableOpacity>
+          <View style={s.accionesRow}>
+            <TouchableOpacity
+              style={s.btnDespensa}
+              onPress={() => handleGuardarEnDespensa(item, masBarato)}
+            >
+              <Text style={s.btnDespensaTexto}>🏠</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.btnAgregar} onPress={() => handleAgregar(item, masBarato)}>
+              <Text style={s.btnAgregarTexto}>+</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {abierto && (
@@ -380,6 +413,9 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   precioLabel: { fontSize: 11, color: C.textMuted, fontWeight: '500', textTransform: 'uppercase' },
   precioValor: { fontSize: 20, fontWeight: '800', color: C.primary, marginTop: 1 },
   precioSup: { fontSize: 12, color: C.textMuted },
+  accionesRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  btnDespensa: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  btnDespensaTexto: { fontSize: 18, lineHeight: 22 },
   btnAgregar: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   btnAgregarTexto: { color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 28 },
   otrosPrecios: { backgroundColor: C.bg, paddingHorizontal: 14, paddingBottom: 12, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },

@@ -8,6 +8,7 @@ export interface Ingrediente {
   precioUnitario?: number;
   supermercado?: string;
   foto?: string;
+  imageUrl?: string;
   agregadoPor: 'manual' | 'boleta' | 'buscador';
   categoria?: string;
 }
