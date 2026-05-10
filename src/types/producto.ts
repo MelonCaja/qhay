@@ -5,6 +5,12 @@ export interface PrecioSupermercado {
   precioLista?: number;
   ultimaActualizacion: Date;
   distancia?: number; // km
+  /**
+   * true  → precio encontrado directamente por scraping en ese local
+   * false → precio de otro local usado como referencia (sin stock confirmado)
+   * undefined → dato heredado (pre-feature), se trata como true para no romper la UI
+   */
+  certezaDato?: boolean;
 }
 
 export interface Producto {

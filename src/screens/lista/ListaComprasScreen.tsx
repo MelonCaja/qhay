@@ -22,10 +22,15 @@ import { CATEGORIAS_LISTA } from '../../constants/categorias';
 
 interface ResultadoSuper {
   supermercado: string;
-  total: number;
-  itemsCubiertos: number;
-  total100: number;
+  total: number;          // costo real (puede incluir estimados)
+  totalAjustado: number;  // clave de ordenamiento — penaliza ítems sin stock
+  itemsConCerteza: number;
+  itemsEstimados: number;
+  totalItems: number;
+  itemsSinConfirmar: string[]; // nombres de ítems sin precio confirmado aquí
 }
+
+const STOCK_PENALTY = 1.0; // 100 % de penalidad por ítems no confirmados
 
 function calcularComparacion(pendientes: ItemLista[]): ResultadoSuper[] {
   if (pendientes.length === 0) return [];
@@ -37,33 +42,50 @@ function calcularComparacion(pendientes: ItemLista[]): ResultadoSuper[] {
   });
   if (supers.size === 0) return [];
 
+  const totalItems = pendientes.length;
+
   return Array.from(supers)
     .map((sup) => {
       let total = 0;
-      let itemsCubiertos = 0;
+      let itemsConCerteza = 0;
+      let itemsEstimados = 0;
+      const itemsSinConfirmar: string[] = [];
 
       pendientes.forEach((item) => {
         const enTodos = item.todosLosPrecios?.find((p) => p.supermercado === sup);
+
         if (enTodos) {
+          // ✅ precio scrapeado directamente de este local
           total += enTodos.precio * item.cantidad;
-          itemsCubiertos++;
+          itemsConCerteza++;
         } else if (item.supermercado === sup && item.precioEstimado) {
+          // ✅ fue elegido en este local desde el buscador
           total += item.precioEstimado * item.cantidad;
-          itemsCubiertos++;
+          itemsConCerteza++;
         } else {
-          // Producto equivalente: fallback a precio estimado
-          total += (item.precioEstimado || 0) * item.cantidad;
+          // ⚠️ sin stock confirmado — usamos precio estimado como referencia
+          total += (item.precioEstimado ?? 0) * item.cantidad;
+          itemsEstimados++;
+          itemsSinConfirmar.push(item.nombre);
         }
       });
+
+      // Penalización: locales con ítems no confirmados suben en el ranking
+      const stockRatio = totalItems > 0 ? itemsConCerteza / totalItems : 1;
+      const totalAjustado = total * (1 + STOCK_PENALTY * (1 - stockRatio));
 
       return {
         supermercado: sup,
         total,
-        itemsCubiertos,
-        total100: total,
+        totalAjustado,
+        itemsConCerteza,
+        itemsEstimados,
+        totalItems,
+        itemsSinConfirmar,
       };
     })
-    .sort((a, b) => a.total - b.total);
+    // Ordenar por total ajustado (stock confirmado primero)
+    .sort((a, b) => a.totalAjustado - b.totalAjustado);
 }
 
 // ── Componente comparador ─────────────────────────────────────────────────────
@@ -78,15 +100,30 @@ function ComparadorSupermercados({ items }: { items: ItemLista[] }) {
   if (comparacion.length === 0) return null;
 
   const mejor = comparacion[0];
-  const totalItems = pendientes.length;
+
+  // ¿Hay un local con TODO confirmado que no sea el primero?
+  const superConTodoConfirmado = comparacion.find(
+    (r) => r.itemsEstimados === 0 && r.supermercado !== mejor.supermercado,
+  );
+  // El primero tiene ítems sin confirmar y hay una alternativa 100% confirmada
+  const mostrarSugerencia =
+    mejor.itemsEstimados > 0 && superConTodoConfirmado !== undefined;
 
   return (
     <View style={s.comparador}>
-      <TouchableOpacity style={s.comparadorHeader} onPress={() => setAbierto((v) => !v)} activeOpacity={0.7}>
-        <View>
-          <Text style={s.comparadorTitulo}>Comparar (Carro 100%)</Text>
+      <TouchableOpacity
+        style={s.comparadorHeader}
+        onPress={() => setAbierto((v) => !v)}
+        activeOpacity={0.7}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={s.comparadorTitulo}>Comparar precios</Text>
           <Text style={s.comparadorSub}>
-            Más conveniente: <Text style={s.comparadorMejor}>{mejor.supermercado}</Text>
+            Recomendado:{' '}
+            <Text style={s.comparadorMejor}>{mejor.supermercado}</Text>
+            {mejor.itemsEstimados > 0 && (
+              <Text style={s.comparadorSubWarn}> · precios mixtos</Text>
+            )}
           </Text>
         </View>
         <Text style={s.chevron}>{abierto ? '▲' : '▼'}</Text>
@@ -94,35 +131,94 @@ function ComparadorSupermercados({ items }: { items: ItemLista[] }) {
 
       {abierto && (
         <View style={s.comparadorBody}>
+
+          {/* Mensaje honesto de sugerencia */}
+          {mostrarSugerencia && (
+            <View style={s.sugerenciaBanner}>
+              <Text style={s.sugerenciaEmoji}>💡</Text>
+              <Text style={s.sugerenciaTexto}>
+                En <Text style={s.sugerenciaNegrita}>{mejor.supermercado}</Text> no se detectaron{' '}
+                {mejor.itemsEstimados} producto{mejor.itemsEstimados > 1 ? 's' : ''} — precio{' '}
+                estimado como referencia.{' '}
+                Te recomendamos <Text style={s.sugerenciaNegrita}>{superConTodoConfirmado!.supermercado}</Text>{' '}
+                donde todos los precios están verificados.
+              </Text>
+            </View>
+          )}
+
           {comparacion.map((r, i) => {
             const esMejor = i === 0;
+            const esEstimado = r.itemsEstimados > 0;
+            const esTodoConfirmado = r.itemsEstimados === 0;
+
             return (
               <View
                 key={r.supermercado}
-                style={[s.supRow, i < comparacion.length - 1 && s.supRowSep, esMejor && s.supRowMejor]}
+                style={[
+                  s.supRow,
+                  i < comparacion.length - 1 && s.supRowSep,
+                  esMejor && s.supRowMejor,
+                ]}
               >
                 <View style={s.supRowIzq}>
-                  {esMejor && (
-                    <View style={s.badgeMejor}>
-                      <Text style={s.badgeMejorTexto}>Recomendado</Text>
-                    </View>
-                  )}
-                  <Text style={[s.supNombre, esMejor && s.supNombreMejor]}>{r.supermercado}</Text>
-                  <Text style={s.supCobertura}>
-                    {r.itemsCubiertos}/{totalItems} exactos
-                    {r.itemsCubiertos < totalItems ? ` (resto equivalente)` : ''}
+                  <View style={s.supBadgesRow}>
+                    {esMejor && (
+                      <View style={s.badgeMejor}>
+                        <Text style={s.badgeMejorTexto}>Recomendado</Text>
+                      </View>
+                    )}
+                    {esTodoConfirmado && !esMejor && (
+                      <View style={s.badgeVerificado}>
+                        <Text style={s.badgeVerificadoTexto}>✓ Verificado</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={[s.supNombre, esMejor && s.supNombreMejor]}>
+                    {r.supermercado}
                   </Text>
+
+                  {esTodoConfirmado ? (
+                    <Text style={s.supCoberturaOk}>
+                      {r.itemsConCerteza}/{r.totalItems} precios confirmados ✓
+                    </Text>
+                  ) : (
+                    <Text style={s.supCoberturaWarn}>
+                      {r.itemsConCerteza}/{r.totalItems} confirmados ·{' '}
+                      {r.itemsEstimados} estimado{r.itemsEstimados > 1 ? 's' : ''}
+                    </Text>
+                  )}
+
+                  {/* Ítems sin stock en este local */}
+                  {esEstimado && r.itemsSinConfirmar.length > 0 && (
+                    <Text style={s.supSinConfirmar} numberOfLines={1}>
+                      Sin stock: {r.itemsSinConfirmar.slice(0, 2).join(', ')}
+                      {r.itemsSinConfirmar.length > 2
+                        ? ` +${r.itemsSinConfirmar.length - 2}`
+                        : ''}
+                    </Text>
+                  )}
                 </View>
+
                 <View style={s.supRowDer}>
-                  <Text style={[s.supTotal, esMejor && s.supTotalMejor]}>
+                  <Text style={[
+                    s.supTotal,
+                    esMejor && !esEstimado && s.supTotalMejor,
+                    esEstimado && s.supTotalEstimado,
+                  ]}>
                     {formatearPrecio(r.total)}
                   </Text>
+                  {esEstimado && (
+                    <Text style={s.supLabelEstimado}>precio estimado</Text>
+                  )}
                 </View>
               </View>
             );
           })}
+
           <Text style={s.comparadorDisclaimer}>
-            Calculado con precio equivalente para ítems no encontrados en el local.
+            ✓ Verificado = precio obtenido en el local por scraping.{'\n'}
+            Los precios estimados son de referencia y pueden variar.
           </Text>
         </View>
       )}
@@ -549,6 +645,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   },
   comparadorTitulo: { fontSize: 15, fontWeight: '700', color: C.text },
   comparadorSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  comparadorSubWarn: { color: C.warning, fontWeight: '600' },
   comparadorMejor: { color: C.primary, fontWeight: '700' },
   chevron: { fontSize: 11, color: C.textMuted },
   comparadorBody: {
@@ -556,26 +653,83 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     borderTopColor: C.border,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    paddingTop: 4,
+    paddingTop: 8,
+    gap: 0,
   },
-  supRow: {
+
+  // Sugerencia honesta
+  sugerenciaBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
+    gap: 8,
+    backgroundColor: '#FFF8E1',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFA000',
+    alignItems: 'flex-start',
   },
+  sugerenciaEmoji: { fontSize: 16, marginTop: 1 },
+  sugerenciaTexto: { flex: 1, fontSize: 12, color: '#5D4037', lineHeight: 17 },
+  sugerenciaNegrita: { fontWeight: '700' },
+
+  // Filas
+  supRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
   supRowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
-  supRowMejor: { backgroundColor: C.primarySoft, marginHorizontal: -16, paddingHorizontal: 16, borderRadius: 0 },
+  supRowMejor: {
+    backgroundColor: C.primarySoft,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderRadius: 0,
+  },
   supRowIzq: { flex: 1, gap: 2 },
-  badgeMejor: { alignSelf: 'flex-start', backgroundColor: C.primary + '25', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 2 },
+  supBadgesRow: { flexDirection: 'row', gap: 4, marginBottom: 2 },
+
+  // Badges
+  badgeMejor: {
+    alignSelf: 'flex-start',
+    backgroundColor: C.primary + '25',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
   badgeMejorTexto: { fontSize: 10, fontWeight: '700', color: C.primary },
+  badgeVerificado: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeVerificadoTexto: { fontSize: 10, fontWeight: '700', color: '#2E7D32' },
+
+  // Nombres y coberturas
   supNombre: { fontSize: 15, fontWeight: '500', color: C.text },
   supNombreMejor: { fontWeight: '700', color: C.primary },
-  supCobertura: { fontSize: 12, color: C.textMuted },
-  supRowDer: { alignItems: 'flex-end', gap: 2 },
+  supCoberturaOk: { fontSize: 11, color: '#2E7D32', fontWeight: '500' },
+  supCoberturaWarn: { fontSize: 11, color: C.warning, fontWeight: '500' },
+  supSinConfirmar: { fontSize: 10, color: C.textMuted, fontStyle: 'italic' },
+
+  // Precio derecho
+  supRowDer: { alignItems: 'flex-end', gap: 2, paddingTop: 18 },
   supTotal: { fontSize: 17, fontWeight: '700', color: C.text },
   supTotalMejor: { color: C.primary, fontSize: 18 },
+  supTotalEstimado: { color: C.textMuted }, // gris = sin certeza
+  supLabelEstimado: {
+    fontSize: 9,
+    color: C.textMuted,
+    fontStyle: 'italic',
+    textAlign: 'right',
+  },
   supFaltantes: { fontSize: 11, color: C.warning },
-  comparadorDisclaimer: { fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginTop: 10, textAlign: 'center' },
+  comparadorDisclaimer: {
+    fontSize: 10,
+    color: C.textMuted,
+    fontStyle: 'italic',
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 15,
+  },
 
   // Modal Mis Listas
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

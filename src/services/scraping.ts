@@ -22,6 +22,7 @@ function mapearProducto(p: any): Producto {
       enOferta: pr.enOferta ?? false,
       precioLista: pr.precioLista,
       ultimaActualizacion: new Date(pr.ultimaActualizacion ?? Date.now()),
+      certezaDato: true, // precio scrapeado directamente de este local
     })),
   };
 }

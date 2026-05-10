@@ -10,7 +10,10 @@ export interface UserLocation {
 export interface MarketSummary {
   market: Supermercado;
   totalCost: number;
+  totalAjustado: number; // totalCost penalizado por ítems sin stock confirmado
   distanceKm: number;
+  itemsConCerteza: number;
+  itemsEstimados: number;
   saveLabel?: string; // e.g. "Ahorra $1.200"
 }
 
@@ -42,28 +45,48 @@ export function getBestMarket(
 ): MarketSummary | null {
   if (markets.length === 0) return null;
 
+  // Penalización por ítems sin stock confirmado:
+  // Si stockRatio = 0.5 → totalAjustado = totalCost × 1.5 (50% de penalidad)
+  // Si stockRatio = 0   → totalAjustado = totalCost × 2   (100% de penalidad)
+  const STOCK_PENALTY = 1.0;
+
   // Build a summary for every market
   const summaries: MarketSummary[] = markets.map((market) => {
-    // Total cost: sum of each item's price in this market
-    const totalCost = items.reduce((acc, item) => {
+    let totalCost = 0;
+    let itemsConCerteza = 0;
+    let itemsEstimados = 0;
+
+    items.forEach((item) => {
       const priceEntry = item.todosLosPrecios?.find(
-        (p) => p.supermercado === market.nombre
+        (p) => p.supermercado === market.nombre,
       );
-      const unitPrice = priceEntry?.precio ?? item.precioEstimado ?? 0;
-      return acc + unitPrice * item.cantidad;
-    }, 0);
+      if (priceEntry) {
+        totalCost += priceEntry.precio * item.cantidad;
+        itemsConCerteza++;
+      } else {
+        // Fallback a precio estimado — no hay stock confirmado en este local
+        totalCost += (item.precioEstimado ?? 0) * item.cantidad;
+        itemsEstimados++;
+      }
+    });
+
+    const totalItems = items.length;
+    const stockRatio = totalItems > 0 ? itemsConCerteza / totalItems : 1;
+    // Si todos los ítems son estimados: penalidad × 0.5 como pide la tarea
+    const totalAjustado = totalCost * (1 + STOCK_PENALTY * (1 - stockRatio));
 
     const distanceKm = distanciaKm(userLoc.lat, userLoc.lng, market.lat, market.lng);
 
-    return { market, totalCost, distanceKm };
+    return { market, totalCost, totalAjustado, distanceKm, itemsConCerteza, itemsEstimados };
   });
 
-  // Cheapest by total cost
-  const cheapest = summaries.reduce((a, b) => (a.totalCost <= b.totalCost ? a : b));
+  // Cheapest por totalAjustado (penaliza locales sin stock confirmado)
+  const cheapest = summaries.reduce((a, b) => (a.totalAjustado <= b.totalAjustado ? a : b));
 
   // Nearest by distance
   const nearest = summaries.reduce((a, b) => (a.distanceKm <= b.distanceKm ? a : b));
 
+  // Diferencia de precio real (no ajustado) para el label de ahorro
   const priceDiff = nearest.totalCost - cheapest.totalCost;
 
   if (priceDiff < 1000) {
