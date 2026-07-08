@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { observarAuth, cerrarSesion, reenviarVerificacion } from '../services/auth';
 import { auth } from '../services/firebase';
@@ -26,32 +25,45 @@ export function useAuth() {
     const unsub = observarAuth(async (firebaseUser) => {
       if (firebaseUser) {
         setEmailVerificado(firebaseUser.emailVerified);
+
+        // Perfil por defecto desde los datos de Auth: se usa si Firestore
+        // falla (permisos/red) o si el perfil aún no existe. La sesión
+        // NUNCA se queda bloqueada esperando a Firestore.
+        const perfilPorDefecto = (): Usuario => ({
+          id: firebaseUser.uid,
+          ...perfilInicial({
+            nombre: firebaseUser.displayName || 'Usuario',
+            email: firebaseUser.email || '',
+            foto: firebaseUser.photoURL || undefined,
+          }),
+        } as unknown as Usuario);
+
         try {
           let usuarioData = await obtenerUsuario(firebaseUser.uid);
 
           // Self-heal: Auth existe pero no hay perfil en Firestore
-          // (registro interrumpido) → crear perfil base para no dejar
-          // la sesión colgada sin redirección.
+          // (registro interrumpido) → crear perfil base.
           if (!usuarioData) {
-            console.error('[useAuth] Sesión sin perfil en /users ni /usuarios — creando perfil base');
-            const base = perfilInicial({
-              nombre: firebaseUser.displayName || 'Usuario',
-              email: firebaseUser.email || '',
-              foto: firebaseUser.photoURL || undefined,
-            });
-            await crearPerfil(firebaseUser.uid, base);
-            usuarioData = { id: firebaseUser.uid, ...base } as unknown as Usuario;
+            usuarioData = perfilPorDefecto();
+            await crearPerfil(firebaseUser.uid, perfilInicial({
+              nombre: usuarioData.nombre,
+              email: usuarioData.email,
+              foto: usuarioData.foto,
+            })).catch((e) => console.error('[useAuth] No se pudo persistir perfil base:', e));
           }
 
           setUsuario(usuarioData);
           await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(usuarioData));
-        } catch (error: any) {
-          // ⚠️ TODO(debug): Alert de auditoría — volver a console.error tras verificar
-          Alert.alert(
-            'ERROR ENCONTRADO (cargando perfil)',
-            `${error?.code ?? 'sin-code'}: ${String(error?.message ?? error)}`
-          );
-          console.error('[useAuth] Error cargando perfil:', error);
+        } catch (error) {
+          console.error('[useAuth] Error cargando perfil, usando fallback:', error);
+          // Bypass: caché local si existe; si no, perfil por defecto →
+          // el navigator avanza a Onboarding/Home en vez de congelarse.
+          const cache = await AsyncStorage.getItem(USUARIO_KEY).catch(() => null);
+          if (cache) {
+            try { setUsuario(JSON.parse(cache)); } catch { setUsuario(perfilPorDefecto()); }
+          } else {
+            setUsuario(perfilPorDefecto());
+          }
         }
       } else {
         setUsuario(null);
