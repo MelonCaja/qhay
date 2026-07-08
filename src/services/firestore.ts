@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
@@ -15,8 +16,19 @@ import { Usuario } from '../types/usuario';
 
 export async function obtenerUsuario(uid: string): Promise<Usuario | null> {
   const snap = await getDoc(doc(db, 'users', uid));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Usuario;
+  if (snap.exists()) return { id: snap.id, ...snap.data() } as Usuario;
+
+  // Automigración: cuentas creadas antes del cambio de colección viven en /usuarios
+  const legacy = await getDoc(doc(db, 'usuarios', uid));
+  if (!legacy.exists()) return null;
+
+  const datos = legacy.data();
+  try {
+    await setDoc(doc(db, 'users', uid), datos);
+  } catch (error) {
+    console.error('[firestore] No se pudo migrar /usuarios → /users:', error);
+  }
+  return { id: legacy.id, ...datos } as Usuario;
 }
 
 export async function actualizarUsuario(uid: string, datos: Partial<Usuario>): Promise<void> {

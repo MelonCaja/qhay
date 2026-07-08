@@ -3,7 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { observarAuth, cerrarSesion, reenviarVerificacion } from '../services/auth';
 import { auth } from '../services/firebase';
 import { obtenerUsuario } from '../services/firestore';
+import { crearPerfil, perfilInicial } from '../services/userService';
 import { useAuthStore } from '../store/authStore';
+import { Usuario } from '../types/usuario';
 
 const USUARIO_KEY = '@qhay_usuario';
 
@@ -24,13 +26,27 @@ export function useAuth() {
       if (firebaseUser) {
         setEmailVerificado(firebaseUser.emailVerified);
         try {
-          const usuarioData = await obtenerUsuario(firebaseUser.uid);
-          if (usuarioData) {
-            setUsuario(usuarioData);
-            await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(usuarioData));
+          let usuarioData = await obtenerUsuario(firebaseUser.uid);
+
+          // Self-heal: Auth existe pero no hay perfil en Firestore
+          // (registro interrumpido) → crear perfil base para no dejar
+          // la sesión colgada sin redirección.
+          if (!usuarioData) {
+            console.error('[useAuth] Sesión sin perfil en /users ni /usuarios — creando perfil base');
+            const base = perfilInicial({
+              nombre: firebaseUser.displayName || 'Usuario',
+              email: firebaseUser.email || '',
+              foto: firebaseUser.photoURL || undefined,
+            });
+            await crearPerfil(firebaseUser.uid, base);
+            usuarioData = { id: firebaseUser.uid, ...base } as unknown as Usuario;
           }
-        } catch {
-          // Error de red: mantener usuario en caché
+
+          setUsuario(usuarioData);
+          await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(usuarioData));
+        } catch (error) {
+          // Error de red: mantener usuario en caché, pero dejar rastro
+          console.error('[useAuth] Error cargando perfil:', error);
         }
       } else {
         setUsuario(null);

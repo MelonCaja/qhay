@@ -42,7 +42,8 @@ export function LoginScreen({ navigation }: Props) {
     setCargando(true);
     try {
       await loginConGoogle(idToken);
-    } catch {
+    } catch (error) {
+      console.error('[login] Error Google:', error);
       Alert.alert('Error', 'No pudimos iniciar sesión con Google.');
     } finally {
       setCargando(false);
@@ -64,9 +65,11 @@ export function LoginScreen({ navigation }: Props) {
     try {
       await iniciarSesion(email.trim(), password);
     } catch (error: unknown) {
-      const mensaje = (error as { code?: string }).code === 'auth/invalid-credential'
+      console.error('[login] Error email/pass:', error);
+      const code = (error as { code?: string }).code;
+      const mensaje = code === 'auth/invalid-credential'
         ? 'Correo o contraseña incorrectos'
-        : 'Error al iniciar sesión';
+        : `Error al iniciar sesión${code ? ` (${code})` : ''}`;
       Alert.alert('Error', mensaje);
     } finally {
       setCargando(false);

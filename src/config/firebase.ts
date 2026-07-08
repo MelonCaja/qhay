@@ -12,6 +12,17 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
 };
 
+// Falla audible si el .env no se cargó (init silenciosamente rota si apiKey='')
+const faltantes = Object.entries(firebaseConfig)
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
+if (faltantes.length > 0) {
+  console.error(
+    `[firebase] Variables de entorno faltantes: ${faltantes.join(', ')}. ` +
+    'Revisa el .env (EXPO_PUBLIC_FIREBASE_*) y reinicia con "expo start -c".'
+  );
+}
+
 const isNewApp = getApps().length === 0;
 const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 
