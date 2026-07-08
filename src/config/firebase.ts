@@ -1,30 +1,20 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { Alert } from 'react-native';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import * as firebaseAuth from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ⚠️ TODO(debug): credenciales hardcodeadas TEMPORALMENTE para descartar
+// variables de entorno vacías en el bundle de EAS Update. Revertir a
+// process.env.EXPO_PUBLIC_FIREBASE_* cuando el login quede verificado.
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? '',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
+  apiKey: 'AIzaSyD2d-dv0bf1uu3DFVyJfYWSRCFB_0ooNnk',
+  authDomain: 'qhay-aac9d.firebaseapp.com',
+  projectId: 'qhay-aac9d',
+  storageBucket: 'qhay-aac9d.firebasestorage.app',
+  messagingSenderId: '977133613009',
+  appId: '1:977133613009:web:4336220ea6404560e43af0',
 };
-
-// Falla audible si el .env no se cargó (init silenciosamente rota si apiKey='')
-const faltantes = Object.entries(firebaseConfig)
-  .filter(([, v]) => !v)
-  .map(([k]) => k);
-if (faltantes.length > 0) {
-  console.error(
-    `[firebase] Variables de entorno faltantes: ${faltantes.join(', ')}. ` +
-    'Revisa el .env (EXPO_PUBLIC_FIREBASE_*) y reinicia con "expo start -c".'
-  );
-}
-
-const isNewApp = getApps().length === 0;
-const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 
 // firebase v12 no expone getReactNativePersistence en los tipos del bundle web,
 // pero sí existe en runtime React Native.
@@ -34,14 +24,27 @@ const getReactNativePersistence = (
   }
 ).getReactNativePersistence;
 
-// En la primera inicialización se configura persistencia; en hot reload ya existe.
+let app: FirebaseApp;
 let auth: firebaseAuth.Auth;
-if (isNewApp) {
-  auth = firebaseAuth.initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} else {
-  auth = firebaseAuth.getAuth(app);
+
+try {
+  const isNewApp = getApps().length === 0;
+  app = isNewApp ? initializeApp(firebaseConfig) : getApp();
+
+  // ⚠️ TODO(debug): alerta de auditoría — quitar tras verificar el login
+  Alert.alert('DEBUG', 'Firebase inicializado correctamente');
+
+  // En la primera inicialización se configura persistencia; en hot reload ya existe.
+  if (isNewApp) {
+    auth = firebaseAuth.initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } else {
+    auth = firebaseAuth.getAuth(app);
+  }
+} catch (error: any) {
+  Alert.alert('DEBUG: FALLO INICIALIZANDO FIREBASE', String(error?.message ?? error));
+  throw error;
 }
 
 export { auth };

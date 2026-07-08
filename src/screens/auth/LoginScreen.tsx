@@ -60,17 +60,26 @@ export function LoginScreen({ navigation }: Props) {
   };
 
   const handleLogin = async () => {
-    if (!validar()) return;
-    setCargando(true);
+    // ⚠️ TODO(debug): try/catch global + alertas de auditoría — limpiar tras verificar
     try {
-      await iniciarSesion(email.trim(), password);
-    } catch (error: unknown) {
-      console.error('[login] Error email/pass:', error);
-      const code = (error as { code?: string }).code;
-      const mensaje = code === 'auth/invalid-credential'
-        ? 'Correo o contraseña incorrectos'
-        : `Error al iniciar sesión${code ? ` (${code})` : ''}`;
-      Alert.alert('Error', mensaje);
+      if (!validar()) return;
+
+      Alert.alert('DEBUG', 'Intentando loguear...');
+      setCargando(true);
+
+      const user = await iniciarSesion(email.trim(), password);
+      Alert.alert('DEBUG', `Firebase Auth OK: uid ${user.uid} — esperando perfil/navegación`);
+    } catch (error: any) {
+      const code: string | undefined = error?.code;
+      // Usuario inexistente en Firebase Auth: avisar, no colgarse
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+        Alert.alert(
+          'ERROR ENCONTRADO',
+          `${code}: No existe una cuenta con ese correo o la contraseña es incorrecta.`
+        );
+      } else {
+        Alert.alert('ERROR ENCONTRADO', `${code ?? 'sin-code'}: ${String(error?.message ?? error)}`);
+      }
     } finally {
       setCargando(false);
     }

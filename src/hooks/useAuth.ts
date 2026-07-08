@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { observarAuth, cerrarSesion, reenviarVerificacion } from '../services/auth';
 import { auth } from '../services/firebase';
@@ -44,8 +45,12 @@ export function useAuth() {
 
           setUsuario(usuarioData);
           await AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(usuarioData));
-        } catch (error) {
-          // Error de red: mantener usuario en caché, pero dejar rastro
+        } catch (error: any) {
+          // ⚠️ TODO(debug): Alert de auditoría — volver a console.error tras verificar
+          Alert.alert(
+            'ERROR ENCONTRADO (cargando perfil)',
+            `${error?.code ?? 'sin-code'}: ${String(error?.message ?? error)}`
+          );
           console.error('[useAuth] Error cargando perfil:', error);
         }
       } else {
