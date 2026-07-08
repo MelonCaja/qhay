@@ -31,6 +31,7 @@ export function RecetasScreen() {
   const { usuario } = useAuthStore();
   const { ingredientes } = useDespensa();
   const [tabActiva, setTabActiva] = useState<Tab>('despensa');
+  const [soloMisUtensilios, setSoloMisUtensilios] = useState(false);
   const [recetasComparando, setRecetasComparando] = useState<Receta[]>([]);
   const [modalComparacion, setModalComparacion] = useState(false);
 
@@ -44,7 +45,10 @@ export function RecetasScreen() {
     tab: tabActiva,
     restricciones: usuario?.restriccionesAlimentarias ?? [],
     tiempoMax: tabActiva === 'todas' ? undefined : usuario?.tiempoCocina,
+    soloMisUtensilios,
   });
+
+  const tieneUtensilios = (usuario?.utensilios?.length ?? 0) > 0;
 
   const toggleComparar = (receta: Receta) => {
     setRecetasComparando((prev) => {
@@ -90,6 +94,16 @@ export function RecetasScreen() {
             </Text>
           </TouchableOpacity>
         ))}
+        {tieneUtensilios && (
+          <TouchableOpacity
+            style={[s.tab, s.tabUtensilios, soloMisUtensilios && s.tabActiva]}
+            onPress={() => setSoloMisUtensilios(!soloMisUtensilios)}
+          >
+            <Text style={[s.tabTexto, soloMisUtensilios && s.tabTextoActivo]}>
+              🍳 Mis utensilios
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Banner comparador (solo en fitness tab) */}
@@ -315,6 +329,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     backgroundColor: C.bg,
   },
   tabActiva: { backgroundColor: C.primary },
+  tabUtensilios: { borderWidth: 1, borderColor: C.primary + '55' },
   tabTexto: { fontSize: 13, color: C.textMuted, fontWeight: '500' },
   tabTextoActivo: { color: '#fff', fontWeight: '600' },
   comparadorBanner: {

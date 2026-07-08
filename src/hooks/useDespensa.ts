@@ -3,12 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDespensaStore } from '../store/despensaStore';
 import { useAuthStore } from '../store/authStore';
 import {
-  obtenerDespensa,
-  agregarIngrediente as agregarFirestore,
-  eliminarIngrediente as eliminarFirestore,
+  obtenerItems,
+  agregarItem,
+  eliminarItem,
   incrementarFrecuencia,
-} from '../services/firestore';
+  calcularDescuentos,
+  aplicarDescuentos,
+  DescuentoReceta,
+} from '../services/pantryService';
 import { Ingrediente } from '../types/ingrediente';
+import { IngredienteReceta } from '../types/receta';
+import type { PantryItem } from '../types/firestore';
 
 const DESPENSA_KEY = '@qhay_despensa';
 
@@ -24,7 +29,7 @@ export function useDespensa() {
     if (!usuario) return;
     setCargando(true);
     try {
-      const datos = await obtenerDespensa(usuario.id);
+      const datos = (await obtenerItems(usuario.id)) as unknown as Ingrediente[];
       setIngredientes(datos);
       await AsyncStorage.setItem(DESPENSA_KEY, JSON.stringify(datos));
     } catch {
@@ -65,7 +70,7 @@ export function useDespensa() {
       }
 
       // Ingrediente nuevo
-      const id = await agregarFirestore(usuario.id, { ...ingrediente, frecuenciaUso: 1 });
+      const id = await agregarItem(usuario.id, { ...ingrediente, frecuenciaUso: 1 });
       agregarIngrediente({ ...ingrediente, id, frecuenciaUso: 1 });
       return id;
     } catch (error) {
@@ -77,12 +82,36 @@ export function useDespensa() {
   const eliminar = async (id: string) => {
     if (!usuario) return;
     try {
-      await eliminarFirestore(usuario.id, id);
+      await eliminarItem(usuario.id, id);
       eliminarIngrediente(id);
     } catch (error) {
       console.error('Error eliminando ingrediente:', error);
       throw error;
     }
+  };
+
+  /**
+   * "Receta realizada": descuenta ingredientes usados de la despensa
+   * en un solo batch y sincroniza el store local.
+   */
+  const descontarReceta = async (
+    ingredientesReceta: IngredienteReceta[]
+  ): Promise<DescuentoReceta[]> => {
+    if (!usuario) return [];
+    const descuentos = calcularDescuentos(
+      ingredientesReceta,
+      ingredientes as unknown as PantryItem[]
+    );
+    if (descuentos.length === 0) return [];
+    await aplicarDescuentos(usuario.id, descuentos);
+    for (const d of descuentos) {
+      if (d.cantidadRestante <= 0) {
+        eliminarIngrediente(d.itemId);
+      } else {
+        actualizarIngrediente(d.itemId, { cantidad: d.cantidadRestante });
+      }
+    }
+    return descuentos;
   };
 
   // Ingredientes próximos a vencer (menos de 7 días)
@@ -94,5 +123,5 @@ export function useDespensa() {
     return dias >= 0 && dias <= 7;
   });
 
-  return { ingredientes, cargando, agregar, eliminar, recargar: cargarDespensa, proxAVencer };
+  return { ingredientes, cargando, agregar, eliminar, descontarReceta, recargar: cargarDespensa, proxAVencer };
 }

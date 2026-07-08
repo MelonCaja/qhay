@@ -12,6 +12,7 @@ import { ScanearBoletaScreen } from '../screens/despensa/ScanearBoletaScreen';
 import { BuscadorProductoScreen } from '../screens/lista/BuscadorProductoScreen';
 import { MapaSupermercadosScreen } from '../screens/mapa/MapaSupermercadosScreen';
 import { BAESScreen } from '../screens/baes/BAESScreen';
+import { DashboardGastosScreen } from '../screens/perfil/DashboardGastosScreen';
 import { PasilloCategoriaScreen } from '../screens/despensa/PasilloCategoriaScreen';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { Colors } from '../constants/colors';
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   BuscadorProducto: { query?: string } | undefined;
   MapaSupermercados: undefined;
   BAES: undefined;
+  DashboardGastos: undefined;
   PasilloCategoriaScreen: { pasilloId: string; pasilloLabel: string };
 };
 
@@ -82,6 +84,11 @@ export function AppNavigator() {
               name="BAES"
               component={BAESScreen}
               options={{ headerShown: true, title: 'Beneficio BAES 🎓', headerTintColor: Colors.primary }}
+            />
+            <Stack.Screen
+              name="DashboardGastos"
+              component={DashboardGastosScreen}
+              options={{ headerShown: true, title: 'Dashboard de gastos', headerTintColor: Colors.primary }}
             />
             <Stack.Screen
               name="PasilloCategoriaScreen"

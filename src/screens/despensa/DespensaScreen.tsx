@@ -9,6 +9,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useDespensaStore } from '../../store/despensaStore';
+import { VencimientoAlert } from '../../components/despensa/VencimientoAlert';
+import { diasParaVencer } from '../../utils/fechaHelper';
 
 // ── Pasillos del supermercado ─────────────────────────────────────────────────
 const PASILLOS = [
@@ -46,6 +48,19 @@ export function DespensaScreen() {
     return mapa;
   }, [ingredientes]);
 
+  // Stats HUD
+  const stats = useMemo(() => {
+    let porVencer = 0;
+    let vencidos = 0;
+    for (const ing of ingredientes) {
+      const dias = diasParaVencer(ing.fechaVencimiento);
+      if (dias === null) continue;
+      if (dias < 0) vencidos++;
+      else if (dias <= 7) porVencer++;
+    }
+    return { total: ingredientes.length, porVencer, vencidos };
+  }, [ingredientes]);
+
   const handlePresionar = (pasillo: { id: PasilloId; label: string }) => {
     navigation.navigate('PasilloCategoriaScreen', {
       pasilloId: pasillo.id,
@@ -57,24 +72,25 @@ export function DespensaScreen() {
     const count = conteoXCategoria[item.id] ?? 0;
     return (
       <TouchableOpacity
-        style={s.fila}
+        style={s.tile}
         onPress={() => handlePresionar(item)}
         activeOpacity={0.7}
       >
-        <View style={s.iconoWrap}>
-          <MaterialCommunityIcons
-            name={item.icono as any}
-            size={26}
-            color={C.primary}
-          />
-        </View>
-        <Text style={s.label}>{item.label}</Text>
-        {count > 0 && (
-          <View style={s.badge}>
-            <Text style={s.badgeTexto}>{count}</Text>
+        <View style={s.tileTop}>
+          <View style={s.iconoWrap}>
+            <MaterialCommunityIcons
+              name={item.icono as any}
+              size={24}
+              color={C.primary}
+            />
           </View>
-        )}
-        <MaterialCommunityIcons name="chevron-right" size={22} color={C.textMuted} />
+          {count > 0 && (
+            <View style={s.badge}>
+              <Text style={s.badgeTexto}>{count}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={s.tileLabel} numberOfLines={2}>{item.label}</Text>
       </TouchableOpacity>
     );
   };
@@ -105,14 +121,42 @@ export function DespensaScreen() {
         </View>
       </View>
 
-      {/* Lista de pasillos */}
       <FlatList
         data={PASILLOS}
         keyExtractor={(item) => item.id}
         renderItem={renderPasillo}
+        numColumns={2}
+        columnWrapperStyle={s.columnas}
         contentContainerStyle={s.lista}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={s.separador} />}
+        ListHeaderComponent={
+          <View>
+            {/* Alerta HUD de vencimientos */}
+            <VencimientoAlert ingredientes={ingredientes} />
+
+            {/* Stats bento */}
+            <View style={s.statsFila}>
+              <View style={s.statTile}>
+                <Text style={s.statValor}>{stats.total}</Text>
+                <Text style={s.statLabel}>ITEMS</Text>
+              </View>
+              <View style={[s.statTile, stats.porVencer > 0 && { borderColor: C.expiryWarning + '66' }]}>
+                <Text style={[s.statValor, stats.porVencer > 0 && { color: C.expiryWarning }]}>
+                  {stats.porVencer}
+                </Text>
+                <Text style={s.statLabel}>POR VENCER</Text>
+              </View>
+              <View style={[s.statTile, stats.vencidos > 0 && { borderColor: C.expiryCritical + '66' }]}>
+                <Text style={[s.statValor, stats.vencidos > 0 && { color: C.expiryCritical }]}>
+                  {stats.vencidos}
+                </Text>
+                <Text style={s.statLabel}>VENCIDOS</Text>
+              </View>
+            </View>
+
+            <Text style={s.seccionTitulo}>Pasillos</Text>
+          </View>
+        }
       />
     </View>
   );
@@ -148,34 +192,48 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   fabTexto: { color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 },
-  lista: { paddingVertical: 8 },
-  fila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  lista: { padding: 16, paddingBottom: 32 },
+  columnas: { gap: 10 },
+
+  // Stats bento
+  statsFila: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  statTile: {
+    flex: 1,
     backgroundColor: C.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 2,
   },
+  statValor: { fontSize: 22, fontWeight: '800', color: C.text },
+  statLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: C.textMuted },
+
+  seccionTitulo: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 12 },
+
+  // Tiles de pasillos (bento 2 col)
+  tile: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    marginBottom: 10,
+    gap: 10,
+    minHeight: 104,
+  },
+  tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   iconoWrap: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: C.bg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
   },
-  label: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: C.text,
-  },
-  separador: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: C.border,
-    marginLeft: 78,
-  },
+  tileLabel: { fontSize: 13, fontWeight: '600', color: C.text, lineHeight: 18 },
   badge: {
     minWidth: 24,
     height: 24,
@@ -184,11 +242,6 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
-    marginRight: 6,
   },
-  badgeTexto: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  badgeTexto: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });

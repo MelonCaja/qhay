@@ -9,6 +9,9 @@ import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { useListaStore } from '../../store/listaStore';
 import { formatearPrecio } from '../../utils/precioHelper';
+import { rankMarketsReal, MarketSummaryReal } from '../../services/shopOptimizer';
+import { Supermercado } from '../../types/producto';
+import { MAPA_CLARO, MAPA_OSCURO, FLUOR } from '../../constants/mapStyles';
 
 // Cadenas grandes chilenas (para destacar en la recomendación)
 const CADENAS_GRANDES = [
@@ -69,13 +72,36 @@ export function MapaSupermercadosScreen() {
   const panelAnim = useRef(new Animated.Value(0)).current;
   const { items } = useListaStore();
 
-  // Recomendación: cadenas grandes → más cercana
+  // Motor precio/distancia: ranking por costo real (lista + desplazamiento)
+  const rankingReal: MarketSummaryReal[] = (() => {
+    if (!ubicacion || supermercados.length === 0 || items.length === 0) return [];
+    const grandes = supermercados.filter((sup) => esCadenaGrande(sup.nombre));
+    const fuente = grandes.length > 0 ? grandes : supermercados;
+    const markets: Supermercado[] = fuente.map((sup, i) => ({
+      id: `osm_${i}`,
+      nombre: sup.nombre,
+      direccion: sup.direccion ?? '',
+      lat: sup.lat,
+      lng: sup.lng,
+      aceptaBAES: false,
+      tipo: esCadenaGrande(sup.nombre) ? 'supermercado' : 'barrio',
+      horario: sup.horario,
+    }));
+    return rankMarketsReal(ubicacion, items, markets);
+  })();
+
+  const optimo: MarketSummaryReal | null = rankingReal[0] ?? null;
+
+  // Fallback sin lista de compras: cadenas grandes → más cercana
   const recomendado: SuperReal | null = (() => {
     if (supermercados.length === 0) return null;
-    const grandes = supermercados.filter((s) => esCadenaGrande(s.nombre));
+    const grandes = supermercados.filter((sup) => esCadenaGrande(sup.nombre));
     const fuente = grandes.length > 0 ? grandes : supermercados;
     return [...fuente].sort((a, b) => a.distancia - b.distancia)[0];
   })();
+
+  const esOptimo = (sup: SuperReal) =>
+    !!optimo && optimo.market.lat === sup.lat && optimo.market.lng === sup.lng;
 
   useEffect(() => { solicitarUbicacion(); }, []);
 
@@ -166,14 +192,21 @@ export function MapaSupermercadosScreen() {
       <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} />
 
       {ubicacion && region && (
-        <MapView style={{ flex: 1 }} initialRegion={region} showsUserLocation showsMyLocationButton>
+        <MapView
+          style={{ flex: 1 }}
+          initialRegion={region}
+          showsUserLocation
+          showsMyLocationButton
+          showsPointsOfInterest={false}
+          customMapStyle={C.text === '#F9FAFB' ? MAPA_OSCURO : MAPA_CLARO}
+        >
           {supermercados.map((super_, idx) => (
             <Marker
               key={idx}
               coordinate={{ latitude: super_.lat, longitude: super_.lng }}
               title={super_.nombre}
               description={super_.direccion}
-              pinColor={esCadenaGrande(super_.nombre) ? '#2563EB' : '#EF4444'}
+              pinColor={esOptimo(super_) ? FLUOR : esCadenaGrande(super_.nombre) ? '#64748B' : '#A8A29E'}
               onPress={() => seleccionarSuper(super_)}
             >
               <Callout onPress={() => seleccionarSuper(super_)}>
@@ -221,6 +254,45 @@ export function MapaSupermercadosScreen() {
               <Text style={s.horarioSinDatos}>Horario no disponible en OpenStreetMap</Text>
             )}
           </Animated.View>
+
+        ) : optimo ? (
+          /* Óptimo precio/distancia con costos reales */
+          <View style={[s.card, { borderLeftColor: FLUOR }]}>
+            <View style={s.cardBadgeFila}>
+              <Text style={s.cardBadge}>⚡ Óptimo precio + distancia</Text>
+              {optimo.saveLabel && (
+                <View style={s.badgeAhorro}>
+                  <Text style={s.badgeAhorroTexto}>{optimo.saveLabel}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={s.cardNombre}>{optimo.market.nombre}</Text>
+            <Text style={s.cardMeta}>
+              📏 {optimo.distanceKm.toFixed(2)} km
+              {optimo.market.direccion ? `  ·  📍 ${optimo.market.direccion}` : ''}
+            </Text>
+            <View style={s.costosFila}>
+              <View style={s.costoItem}>
+                <Text style={s.costoLabel}>LISTA</Text>
+                <Text style={s.costoValor}>{formatearPrecio(Math.round(optimo.totalCost))}</Text>
+              </View>
+              <View style={s.costoItem}>
+                <Text style={s.costoLabel}>TRASLADO</Text>
+                <Text style={s.costoValor}>{formatearPrecio(optimo.costoDesplazamiento)}</Text>
+              </View>
+              <View style={s.costoItem}>
+                <Text style={s.costoLabel}>COSTO REAL</Text>
+                <Text style={[s.costoValor, { color: C.primary }]}>
+                  {formatearPrecio(optimo.costoTotalReal)}
+                </Text>
+              </View>
+            </View>
+            {optimo.itemsEstimados > 0 && (
+              <Text style={s.costoNota}>
+                {optimo.itemsEstimados} ítem{optimo.itemsEstimados > 1 ? 's' : ''} con precio estimado (sin stock confirmado)
+              </Text>
+            )}
+          </View>
 
         ) : recomendado ? (
           /* Recomendación automática */
@@ -284,6 +356,32 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   cardTopIzq: { flex: 1 },
   cardBadge: { fontSize: 10, color: C.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  cardBadgeFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  badgeAhorro: {
+    backgroundColor: '#4ADE8022',
+    borderWidth: 1,
+    borderColor: '#4ADE80',
+    borderRadius: 100,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  badgeAhorroTexto: { fontSize: 11, fontWeight: '800', color: '#16A34A' },
+  costosFila: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  costoItem: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    gap: 2,
+  },
+  costoLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8, color: C.textMuted },
+  costoValor: { fontSize: 13, fontWeight: '800', color: C.text },
+  costoNota: { fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginTop: 6 },
   cardNombre: { fontSize: 16, fontWeight: '800', color: C.text },
   cardMeta: { fontSize: 12, color: C.textMuted, marginTop: 2, lineHeight: 16 },
   cerrar: { fontSize: 15, color: C.textMuted, paddingTop: 2 },

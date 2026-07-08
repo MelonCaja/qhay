@@ -12,6 +12,19 @@ export interface Usuario {
   supermercadoFavorito?: string;
   onboardingCompletado: boolean;
   fechaRegistro?: Date;
+  // Campos Firestore /users (ver types/firestore.ts)
+  gustos?: string[];
+  utensilios?: string[];
+  baes?: {
+    activo: boolean;
+    montoDiario: number;
+    institucion?: string;
+  };
+  limites?: {
+    escaneosBoletaMes: number;
+    mesReferencia: string;
+    recetasCacheadas: number;
+  };
 }
 
 export type RestriccionAlimentaria =

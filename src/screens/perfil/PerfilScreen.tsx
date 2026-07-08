@@ -90,6 +90,18 @@ export function PerfilScreen() {
           <View style={s.stat}><Text style={s.statNum}>{usuario.restriccionesAlimentarias.length}</Text><Text style={s.statLabel}>restricciones</Text></View>
         </View>
 
+        {/* Dashboard de gastos */}
+        <View style={s.seccion}>
+          <Text style={s.seccionTitulo}>Analíticas</Text>
+          <TouchableOpacity style={s.fila} onPress={() => navigation.navigate('DashboardGastos')}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.filaLabel}>📊 Dashboard de gastos</Text>
+              <Text style={s.filaSub}>Gasto por categoría, supermercado y nutrición</Text>
+            </View>
+            <Text style={{ color: C.textMuted, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Restricciones */}
         <View style={s.seccion}>
           <Text style={s.seccionTitulo}>Restricciones alimentarias</Text>

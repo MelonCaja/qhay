@@ -9,12 +9,17 @@ import { useNavigation } from '@react-navigation/native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useDespensa } from '../../hooks/useDespensa';
 import { escanearBoleta, buscarPorCodigoBarras, ItemBoleta } from '../../services/boleta';
+import { mapearItemsAProductos, ItemBoletaMapeado } from '../../services/ocrService';
+import {
+  puedeEscanearBoleta, registrarEscaneoBoleta, escaneosRestantes, LIMITE_ESCANEOS_FREE,
+} from '../../services/userService';
+import { useAuthStore } from '../../store/authStore';
 import { UnidadMedida } from '../../types/ingrediente';
 
 type Modo = 'barras' | 'foto';
 type Paso = 'camara' | 'preview' | 'procesando' | 'revision';
 
-interface ItemConCheck extends ItemBoleta {
+interface ItemConCheck extends ItemBoletaMapeado {
   seleccionado: boolean;
 }
 
@@ -28,6 +33,7 @@ export function ScanearBoletaScreen() {
   const s = makeStyles(C);
   const navigation = useNavigation();
   const { agregar } = useDespensa();
+  const { usuario } = useAuthStore();
   const [permission, requestPermission] = useCameraPermissions();
   const [modo, setModo] = useState<Modo>('barras');
   const [paso, setPaso] = useState<Paso>('camara');
@@ -58,6 +64,16 @@ export function ScanearBoletaScreen() {
   // ── Modo foto: analizar la imagen ya capturada ────────────────────────────
   const analizarFoto = useCallback(async () => {
     if (!foto?.base64) return;
+
+    // Límite plan Free: 4 escaneos/mes (contador en /users/{uid}.limites)
+    if (usuario && !puedeEscanearBoleta(usuario)) {
+      Alert.alert(
+        'Límite mensual alcanzado',
+        `Tu plan gratuito incluye ${LIMITE_ESCANEOS_FREE} escaneos de boleta al mes. Pásate a Premium para escaneos ilimitados.`,
+      );
+      return;
+    }
+
     setPaso('procesando');
     try {
       const extraidos = await escanearBoleta(foto.base64);
@@ -69,14 +85,17 @@ export function ScanearBoletaScreen() {
         );
         return;
       }
-      setItems(extraidos.map((i) => ({ ...i, seleccionado: true })));
+      // Fuzzy matching contra /products_scraped: imagen + precio de referencia
+      const mapeados = await mapearItemsAProductos(extraidos).catch(() => extraidos);
+      if (usuario) registrarEscaneoBoleta(usuario).catch(() => {});
+      setItems(mapeados.map((i) => ({ ...i, seleccionado: true })));
       setPaso('revision');
     } catch (err: any) {
       Alert.alert('Error al analizar', err?.message ?? 'Error desconocido', [
         { text: 'OK', onPress: () => setPaso('preview') },
       ]);
     }
-  }, [foto]);
+  }, [foto, usuario]);
 
   // ── Modo barras: escaneo automático ──────────────────────────────────────
   const handleBarcode = useCallback(async ({ data: codigo }: { data: string }) => {
@@ -148,6 +167,7 @@ export function ScanearBoletaScreen() {
         unidad: item.unidad as UnidadMedida,
         precioUnitario: item.precioUnitario,
         categoria: item.categoria,
+        imageUrl: item.imageUrl,
         agregadoPor: 'boleta',
       })));
       Alert.alert('¡Listo!', `${sel.length} producto${sel.length !== 1 ? 's' : ''} agregado${sel.length !== 1 ? 's' : ''} a tu despensa.`,
@@ -337,6 +357,11 @@ export function ScanearBoletaScreen() {
           <Text style={s.fotoSub}>
             Captura toda la boleta, bien iluminada.{'\n'}La IA detectará todos los productos.
           </Text>
+          {usuario && usuario.plan !== 'premium' && (
+            <Text style={s.fotoLimite}>
+              {escaneosRestantes(usuario)} de {LIMITE_ESCANEOS_FREE} escaneos disponibles este mes
+            </Text>
+          )}
           <TouchableOpacity style={s.btnTomarFoto} onPress={abrirCamara}>
             <Text style={s.btnTomarFotoTexto}>Abrir cámara</Text>
           </TouchableOpacity>
@@ -362,6 +387,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   // Modo foto
   fotoTitulo: { fontSize: 20, fontWeight: '700', color: '#fff', textAlign: 'center' },
   fotoSub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 22, marginBottom: 8 },
+  fotoLimite: { fontSize: 12, color: '#FBBF24', fontWeight: '600' },
   btnTomarFoto: { backgroundColor: C.primary, borderRadius: 100, paddingVertical: 16, paddingHorizontal: 40, marginTop: 8 },
   btnTomarFotoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
 

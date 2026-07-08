@@ -20,7 +20,7 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
   const C = useColors();
   const s = makeStyles(C);
   const { receta } = route.params;
-  const { ingredientes, eliminar } = useDespensa();
+  const { ingredientes, descontarReceta } = useDespensa();
   const { usuario } = useAuthStore();
   const { toggleFavorito, esFavorito } = useFavoritosStore();
   const [pasoActual, setPasoActual] = useState(0);
@@ -62,13 +62,23 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
       {
         text: 'Sí, descontar',
         onPress: async () => {
-          for (const ing of ingredientesConEstado) {
-            if (ing.disponible) {
-              const enDespensa = ingredientes.find((d) => d.nombre.toLowerCase().includes(ing.nombre.toLowerCase()));
-              if (enDespensa) await eliminar(enDespensa.id);
-            }
+          try {
+            const descuentos = await descontarReceta(receta.ingredientes);
+            const agotados = descuentos.filter((d) => d.cantidadRestante <= 0);
+            const resumen = [
+              descuentos.length > 0
+                ? `Se descontaron ${descuentos.length} ingredientes.`
+                : 'No había ingredientes que descontar.',
+              agotados.length > 0
+                ? `Se agotaron: ${agotados.map((d) => d.nombre).join(', ')}.`
+                : null,
+            ].filter(Boolean).join('\n');
+            Alert.alert('Despensa actualizada', resumen, [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+          } catch {
+            Alert.alert('Error', 'No se pudo actualizar la despensa.');
           }
-          navigation.goBack();
         },
       },
     ]);
@@ -107,8 +117,8 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
             `👥 ${receta.porciones} porciones`,
             caloriasEscaladas ? `🔥 ${caloriasEscaladas} kcal` : null,
           ].filter(Boolean).map((txt, i) => (
-            <View key={i} style={[s.infoChip, caloriasEscaladas && i === 3 && s.infoChipCalorias]}>
-              <Text style={[s.infoTexto, i === 1 && { color: colorDificultad, textTransform: 'capitalize' }, caloriasEscaladas && i === 3 && s.infoTextoCalorias]}>
+            <View key={i} style={[s.infoChip, !!caloriasEscaladas && i === 3 && s.infoChipCalorias]}>
+              <Text style={[s.infoTexto, i === 1 && { color: colorDificultad, textTransform: 'capitalize' }, !!caloriasEscaladas && i === 3 && s.infoTextoCalorias]}>
                 {txt}
               </Text>
             </View>

@@ -9,29 +9,25 @@ import {
   signInWithCredential,
   User,
 } from 'firebase/auth';
-import { auth } from './firebase';
-import { crearUsuarioEnFirestore, obtenerUsuario } from './firestore';
+import { auth } from '../config/firebase';
+import { crearPerfil, obtenerPerfil, perfilInicial } from './userService';
 
 // Login con Google
 export async function loginConGoogle(idToken: string): Promise<User> {
   const credential = GoogleAuthProvider.credential(idToken);
   const result = await signInWithCredential(auth, credential);
-  
+
   // Verificar si es usuario nuevo en Firestore
-  const userExistente = await obtenerUsuario(result.user.uid);
+  const userExistente = await obtenerPerfil(result.user.uid);
   if (!userExistente) {
-    await crearUsuarioEnFirestore(result.user.uid, {
-      nombre: result.user.displayName || 'Usuario Google',
-      email: result.user.email || '',
-      foto: result.user.photoURL || undefined,
-      plan: 'gratuito',
-      esEstudiante: false,
-      estudianteVerificado: false,
-      restriccionesAlimentarias: [],
-      tiempoCocina: 45,
-      onboardingCompletado: false,
-      fechaRegistro: new Date(),
-    });
+    await crearPerfil(
+      result.user.uid,
+      perfilInicial({
+        nombre: result.user.displayName || 'Usuario Google',
+        email: result.user.email || '',
+        foto: result.user.photoURL || undefined,
+      })
+    );
   }
   return result.user;
 }
@@ -45,17 +41,7 @@ export async function registrarUsuario(
   const credencial = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credencial.user, { displayName: nombre });
   await sendEmailVerification(credencial.user);
-  await crearUsuarioEnFirestore(credencial.user.uid, {
-    nombre,
-    email,
-    plan: 'gratuito',
-    esEstudiante: false,
-    estudianteVerificado: false,
-    restriccionesAlimentarias: [],
-    tiempoCocina: 45,
-    onboardingCompletado: false,
-    fechaRegistro: new Date(),
-  });
+  await crearPerfil(credencial.user.uid, perfilInicial({ nombre, email }));
   return credencial.user;
 }
 

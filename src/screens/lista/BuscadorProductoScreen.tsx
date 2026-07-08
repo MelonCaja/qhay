@@ -14,6 +14,9 @@ import { agregarItemLista } from '../../services/firestore';
 import { useAuthStore } from '../../store/authStore';
 import { useListaStore } from '../../store/listaStore';
 import { buscarProductos } from '../../services/scraping';
+import {
+  buscarIndexado, indiceFresco, aProducto, actualizarPreciosBatch,
+} from '../../services/productService';
 import { Producto, PrecioSupermercado } from '../../types/producto';
 import { formatearPrecio } from '../../utils/precioHelper';
 import { CATEGORIAS_LISTA } from '../../constants/categorias';
@@ -81,6 +84,7 @@ export function BuscadorProductoScreen({ route }: Props) {
   const [resultados, setResultados]       = useState<Producto[]>([]);
   const [noDisponibles, setNoDisponibles] = useState<string[]>([]);
   const [buscando, setBuscando]           = useState(false);
+  const [origen, setOrigen]               = useState<'indice' | 'vivo' | null>(null);
   const [expandido, setExpandido]         = useState<string | null>(null);
   const [modalFiltros, setModalFiltros]   = useState(false);
   const [imgErrors, setImgErrors]         = useState<Record<string, boolean>>({});
@@ -90,17 +94,34 @@ export function BuscadorProductoScreen({ route }: Props) {
   const { usuario }              = useAuthStore();
   const { agregar: agregarDespensa } = useDespensa();
 
-  // ── Búsqueda con debounce ──────────────────────────────────────────────────
+  // ── Búsqueda en vivo (scraping) + persistencia batch en /products_scraped ──
+  const buscarEnVivo = async (q: string) => {
+    const { productos, supermercadosNoDisponibles } = await buscarProductos(q);
+    setResultados(productos);
+    setNoDisponibles(supermercadosNoDisponibles);
+    setOrigen('vivo');
+    // Alimenta el índice en segundo plano (writeBatch, no bloquea la UI)
+    actualizarPreciosBatch(productos).catch(() => {});
+  };
+
+  // ── Búsqueda con debounce: índice Firestore primero, scraping si no hay ────
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!query.trim()) { setResultados([]); setNoDisponibles([]); return; }
+    if (!query.trim()) { setResultados([]); setNoDisponibles([]); setOrigen(null); return; }
 
     timerRef.current = setTimeout(async () => {
       setBuscando(true);
       try {
-        const { productos, supermercadosNoDisponibles } = await buscarProductos(query);
-        setResultados(productos);
-        setNoDisponibles(supermercadosNoDisponibles);
+        // 1) Índice /products_scraped: lecturas acotadas, respuesta inmediata
+        const indexados = await buscarIndexado(query).catch(() => []);
+        if (indexados.length >= 3 && indiceFresco(indexados)) {
+          setResultados(indexados.map(aProducto));
+          setNoDisponibles([]);
+          setOrigen('indice');
+          return;
+        }
+        // 2) Sin datos frescos → scraping en vivo
+        await buscarEnVivo(query);
       } finally {
         setBuscando(false);
       }
@@ -409,8 +430,20 @@ export function BuscadorProductoScreen({ route }: Props) {
         <View style={s.resultadosHeader}>
           <Text style={s.resultadosCount}>
             {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}
+            {origen === 'indice' ? '  ⚡' : ''}
           </Text>
-          <Text style={s.resultadosTip}>🏠 despensa &nbsp;·&nbsp; + lista</Text>
+          {origen === 'indice' ? (
+            <TouchableOpacity
+              onPress={async () => {
+                setBuscando(true);
+                try { await buscarEnVivo(query); } finally { setBuscando(false); }
+              }}
+            >
+              <Text style={s.resultadosLink}>Actualizar precios en vivo</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={s.resultadosTip}>🏠 despensa &nbsp;·&nbsp; + lista</Text>
+          )}
         </View>
       )}
 
@@ -588,6 +621,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   },
   resultadosCount: { fontSize: 13, fontWeight: '600', color: C.text },
   resultadosTip: { fontSize: 11, color: C.textMuted },
+  resultadosLink: { fontSize: 11, color: C.primary, fontWeight: '700' },
 
   // ── Lista / sin resultados ────────────────────────────────────────────────
   lista: { paddingHorizontal: 16, paddingBottom: 32 },

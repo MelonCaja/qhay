@@ -1,5 +1,3 @@
-import { Ingrediente } from '../types/ingrediente';
-import { IngredienteReceta, Receta } from '../types/receta';
 import { ItemLista, Supermercado } from '../types/producto';
 
 export interface UserLocation {
@@ -17,6 +15,14 @@ export interface MarketSummary {
   saveLabel?: string; // e.g. "Ahorra $1.200"
 }
 
+/** CLP por km recorrido (ida y vuelta se calcula aparte) — bencina/micro aprox */
+export const COSTO_TRANSPORTE_POR_KM = 150;
+
+export interface MarketSummaryReal extends MarketSummary {
+  costoDesplazamiento: number; // CLP, ida y vuelta
+  costoTotalReal: number;      // totalAjustado + desplazamiento
+}
+
 // Haversine distance in km between two lat/lng points
 function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -30,28 +36,17 @@ function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/**
- * Evaluates a list of markets and returns the best one given the user's
- * location and a shopping list.
- *
- * Decision rule:
- *   - If (price_nearest − price_cheapest) < 1000 → return nearest
- *   - Otherwise → return cheapest with "Ahorra $X" label
- */
-export function getBestMarket(
+function buildSummaries(
   userLoc: UserLocation,
   items: ItemLista[],
   markets: Supermercado[]
-): MarketSummary | null {
-  if (markets.length === 0) return null;
-
+): MarketSummary[] {
   // Penalización por ítems sin stock confirmado:
   // Si stockRatio = 0.5 → totalAjustado = totalCost × 1.5 (50% de penalidad)
   // Si stockRatio = 0   → totalAjustado = totalCost × 2   (100% de penalidad)
   const STOCK_PENALTY = 1.0;
 
-  // Build a summary for every market
-  const summaries: MarketSummary[] = markets.map((market) => {
+  return markets.map((market) => {
     let totalCost = 0;
     let itemsConCerteza = 0;
     let itemsEstimados = 0;
@@ -79,6 +74,24 @@ export function getBestMarket(
 
     return { market, totalCost, totalAjustado, distanceKm, itemsConCerteza, itemsEstimados };
   });
+}
+
+/**
+ * Evaluates a list of markets and returns the best one given the user's
+ * location and a shopping list.
+ *
+ * Decision rule:
+ *   - If (price_nearest − price_cheapest) < 1000 → return nearest
+ *   - Otherwise → return cheapest with "Ahorra $X" label
+ */
+export function getBestMarket(
+  userLoc: UserLocation,
+  items: ItemLista[],
+  markets: Supermercado[]
+): MarketSummary | null {
+  if (markets.length === 0) return null;
+
+  const summaries = buildSummaries(userLoc, items, markets);
 
   // Cheapest por totalAjustado (penaliza locales sin stock confirmado)
   const cheapest = summaries.reduce((a, b) => (a.totalAjustado <= b.totalAjustado ? a : b));
@@ -99,60 +112,39 @@ export function getBestMarket(
   };
 }
 
-export interface PantryUpdateResult {
-  updated: Array<{ id: string; nombre: string; cantidadAnterior: number; cantidadNueva: number }>;
-  removed: Array<{ id: string; nombre: string }>;
-  notFound: string[];
-}
-
 /**
- * Decrements pantry quantities for every ingredient used in a cooked recipe.
- * Returns three lists: updated items, fully depleted items (to delete), and
- * ingredient names that had no match in the pantry.
- *
- * The caller is responsible for persisting the changes (e.g. calling the
- * Firestore/store layer with the returned lists).
+ * Ranking por costo REAL: precio de la lista (ajustado por stock) + costo de
+ * desplazamiento ida y vuelta (distancia × 2 × COSTO_TRANSPORTE_POR_KM).
+ * El primero del ranking es el óptimo precio/distancia; incluye saveLabel
+ * con el ahorro real frente al local más cercano.
  */
-export function handleCookedRecipe(
-  pantry: Ingrediente[],
-  recipe: Receta
-): PantryUpdateResult {
-  const result: PantryUpdateResult = { updated: [], removed: [], notFound: [] };
+export function rankMarketsReal(
+  userLoc: UserLocation,
+  items: ItemLista[],
+  markets: Supermercado[]
+): MarketSummaryReal[] {
+  if (markets.length === 0) return [];
 
-  for (const recipeIng of recipe.ingredientes) {
-    const match = findPantryMatch(recipeIng, pantry);
+  const summaries: MarketSummaryReal[] = buildSummaries(userLoc, items, markets).map((sm) => {
+    const costoDesplazamiento = Math.round(sm.distanceKm * 2 * COSTO_TRANSPORTE_POR_KM);
+    return {
+      ...sm,
+      costoDesplazamiento,
+      costoTotalReal: Math.round(sm.totalAjustado + costoDesplazamiento),
+    };
+  });
 
-    if (!match) {
-      result.notFound.push(recipeIng.nombre);
-      continue;
-    }
+  summaries.sort((a, b) => a.costoTotalReal - b.costoTotalReal);
 
-    const cantidadAnterior = match.cantidad;
-    const cantidadNueva = cantidadAnterior - recipeIng.cantidad;
-
-    if (cantidadNueva <= 0) {
-      result.removed.push({ id: match.id, nombre: match.nombre });
-    } else {
-      result.updated.push({
-        id: match.id,
-        nombre: match.nombre,
-        cantidadAnterior,
-        cantidadNueva,
-      });
-    }
+  const nearest = summaries.reduce((a, b) => (a.distanceKm <= b.distanceKm ? a : b));
+  const best = summaries[0];
+  const ahorroReal = Math.round(nearest.costoTotalReal - best.costoTotalReal);
+  if (best.market.id !== nearest.market.id && ahorroReal >= 500) {
+    summaries[0] = {
+      ...best,
+      saveLabel: `Ahorra $${ahorroReal.toLocaleString('es-CL')}`,
+    };
   }
 
-  return result;
-}
-
-// Flexible name matching: substring in either direction (same logic as the rest of the app)
-function findPantryMatch(
-  recipeIng: IngredienteReceta,
-  pantry: Ingrediente[]
-): Ingrediente | undefined {
-  const target = recipeIng.nombre.toLowerCase();
-  return pantry.find((item) => {
-    const pantryName = item.nombre.toLowerCase();
-    return pantryName.includes(target) || target.includes(pantryName);
-  });
+  return summaries;
 }
