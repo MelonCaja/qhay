@@ -48,6 +48,12 @@ export interface UserDoc {
     institucion?: string;
   };
 
+  // Aceptación de Términos y Condiciones (ver src/legal/terms.ts)
+  terminos?: {
+    version: string;
+    aceptadoEn: FsDate;
+  };
+
   // Límites plan Free
   limites: {
     escaneosBoletaMes: number;         // contador mes actual (Free: máx 4)

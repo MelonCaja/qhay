@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, Alert, StatusBar,
+  KeyboardAvoidingView, Platform, Alert, StatusBar, TouchableOpacity,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -9,6 +9,7 @@ import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { registrarUsuario } from '../../services/auth';
+import { TerminosModal } from '../../components/legal/TerminosModal';
 
 type Props = { navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'> };
 
@@ -21,6 +22,8 @@ export function RegisterScreen({ navigation }: Props) {
   const [confirmar, setConfirmar] = useState('');
   const [cargando, setCargando] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [modalTerminos, setModalTerminos] = useState(false);
 
   const validar = () => {
     const e: Record<string, string> = {};
@@ -30,6 +33,7 @@ export function RegisterScreen({ navigation }: Props) {
     if (!password) e.password = 'Contraseña obligatoria';
     else if (password.length < 6) e.password = 'Mínimo 6 caracteres';
     if (password !== confirmar) e.confirmar = 'Las contraseñas no coinciden';
+    if (!aceptaTerminos) e.terminos = 'Debes aceptar los Términos y Condiciones';
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -67,10 +71,36 @@ export function RegisterScreen({ navigation }: Props) {
           <Input label="Correo" placeholder="tu@correo.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" error={errores.email} />
           <Input label="Contraseña" placeholder="Mínimo 6 caracteres" value={password} onChangeText={setPassword} secureTextEntry error={errores.password} />
           <Input label="Confirmar" placeholder="Repite tu contraseña" value={confirmar} onChangeText={setConfirmar} secureTextEntry error={errores.confirmar} />
+
+          {/* Aceptación obligatoria de Términos y Condiciones */}
+          <TouchableOpacity
+            style={s.terminosFila}
+            onPress={() => setAceptaTerminos(!aceptaTerminos)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.checkbox, aceptaTerminos && s.checkboxOn]}>
+              {aceptaTerminos && <Text style={s.checkboxMark}>✓</Text>}
+            </View>
+            <Text style={s.terminosTexto}>
+              Acepto los{' '}
+              <Text style={s.terminosLink} onPress={() => setModalTerminos(true)}>
+                Términos y Condiciones
+              </Text>
+              , incluido el tratamiento de mis boletas (Ley 19.628)
+            </Text>
+          </TouchableOpacity>
+          {errores.terminos && <Text style={s.terminosError}>{errores.terminos}</Text>}
+
           <Button titulo="Crear cuenta" onPress={handleRegistro} cargando={cargando} estiloContenedor={s.btn} />
           <Button titulo="¿Ya tienes cuenta? Inicia sesión" onPress={() => navigation.goBack()} variante="outline" estiloContenedor={s.btn} />
         </View>
       </ScrollView>
+
+      <TerminosModal
+        visible={modalTerminos}
+        onCerrar={() => setModalTerminos(false)}
+        onAceptar={() => setAceptaTerminos(true)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -92,4 +122,14 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     elevation: 4,
   },
   btn: { marginTop: 10 },
+  terminosFila: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  checkboxOn: { backgroundColor: C.primary, borderColor: C.primary },
+  checkboxMark: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  terminosTexto: { flex: 1, fontSize: 12, color: C.textMuted, lineHeight: 18 },
+  terminosLink: { color: C.primary, fontWeight: '700', textDecorationLine: 'underline' },
+  terminosError: { fontSize: 12, color: C.error, marginTop: 6 },
 });

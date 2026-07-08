@@ -13,6 +13,7 @@ import { useDespensa } from '../../hooks/useDespensa';
 import { useFavoritosStore } from '../../store/favoritosStore';
 import { getRecetas } from '../../services/recipeService';
 import { Receta } from '../../types/receta';
+import { TerminosModal } from '../../components/legal/TerminosModal';
 
 const RESTRICCIONES = [
   { id: 'vegetariano', label: 'Vegetariano' },
@@ -30,6 +31,7 @@ export function PerfilScreen() {
   const { favoritos, esFavorito } = useFavoritosStore();
   const [guardando, setGuardando] = useState(false);
   const [recetas, setRecetas] = useState<Receta[]>([]);
+  const [modalTerminos, setModalTerminos] = useState(false);
 
   useEffect(() => {
     getRecetas().then(setRecetas).catch(() => {});
@@ -164,6 +166,18 @@ export function PerfilScreen() {
           </View>
         )}
 
+        {/* Legal */}
+        <View style={s.seccion}>
+          <Text style={s.seccionTitulo}>Legal</Text>
+          <TouchableOpacity style={s.fila} onPress={() => setModalTerminos(true)}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.filaLabel}>📄 Términos y Condiciones</Text>
+              <Text style={s.filaSub}>Precios referenciales, datos de boletas (Ley 19.628) y uso BAES</Text>
+            </View>
+            <Text style={{ color: C.textMuted, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Feedback */}
         <TouchableOpacity
           style={s.btnFeedback}
@@ -191,6 +205,8 @@ export function PerfilScreen() {
 
         <Text style={s.version}>Qhay v1.0.0</Text>
       </ScrollView>
+
+      <TerminosModal visible={modalTerminos} onCerrar={() => setModalTerminos(false)} />
     </View>
   );
 }

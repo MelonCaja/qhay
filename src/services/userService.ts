@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { User, UserDoc, Utensilio } from '../types/firestore';
+import { TERMINOS_VERSION } from '../legal/terms';
 
 const USERS = 'users';
 
@@ -37,6 +38,8 @@ export function perfilInicial(datos: {
     utensilios: [],
     esEstudiante: false,
     estudianteVerificado: false,
+    // El registro exige el checkbox de aceptación (RegisterScreen)
+    terminos: { version: TERMINOS_VERSION, aceptadoEn: new Date() },
     limites: {
       escaneosBoletaMes: 0,
       mesReferencia: mesActual(),
