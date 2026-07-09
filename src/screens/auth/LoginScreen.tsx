@@ -10,7 +10,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
-import { iniciarSesion, loginConGoogle } from '../../services/auth';
+import { iniciarSesion, loginConGoogle, reenviarVerificacion } from '../../services/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,10 +25,12 @@ export function LoginScreen({ navigation }: Props) {
   const [cargando, setCargando] = useState(false);
   const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
 
+  // Este client ID debe estar en Supabase → Auth → Providers → Google →
+  // "Authorized Client IDs" para que signInWithIdToken acepte el id_token.
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com', // Reemplazar con el tuyo de Firebase
-    iosClientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com', // Reemplazar con el tuyo
-    androidClientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com', // Reemplazar con el tuyo
+    clientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com',
+    iosClientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com',
+    androidClientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com',
   });
 
   useEffect(() => {
@@ -69,11 +71,21 @@ export function LoginScreen({ navigation }: Props) {
     } catch (error: any) {
       console.error('[login] Error email/pass:', error);
       const code: string | undefined = error?.code;
-      const mensaje =
-        code === 'auth/user-not-found' || code === 'auth/invalid-credential'
+      if (code === 'email_not_confirmed') {
+        Alert.alert(
+          'Correo sin verificar',
+          'Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada (y spam).',
+          [
+            { text: 'Reenviar correo', onPress: () => reenviarVerificacion(email.trim()).catch(() => {}) },
+            { text: 'OK', style: 'default' },
+          ]
+        );
+      } else {
+        const mensaje = code === 'invalid_credentials'
           ? 'No existe una cuenta con ese correo o la contraseña es incorrecta.'
           : `Error al iniciar sesión${code ? ` (${code})` : ''}.`;
-      Alert.alert('Error', mensaje);
+        Alert.alert('Error', mensaje);
+      }
     } finally {
       setCargando(false);
     }
@@ -81,10 +93,12 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <View style={s.header}>
-          <Text style={s.logo}>Qhay</Text>
+          <View style={s.logoBloque}>
+            <Text style={s.logo}>Qhay</Text>
+          </View>
           <Text style={s.slogan}>¿Qué hay para cocinar hoy?</Text>
         </View>
 
@@ -142,36 +156,41 @@ export function LoginScreen({ navigation }: Props) {
 
 const makeStyles = (C: ColorPalette) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: C.bg },
-  scroll: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', paddingVertical: 48 },
-  logo: { fontSize: 42, fontWeight: '800', color: C.primary, letterSpacing: -1 },
-  slogan: { fontSize: 15, color: C.textMuted, marginTop: 6, textAlign: 'center' },
+  scroll: { flexGrow: 1, padding: 20, justifyContent: 'center' },
+  header: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  logoBloque: {
+    backgroundColor: C.surface,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: C.borderBright,
+    paddingVertical: 18,
+    paddingHorizontal: 34,
+  },
+  logo: { fontSize: 40, fontWeight: '800', color: C.primary, letterSpacing: -1.5 },
+  slogan: { fontSize: 14, color: C.textMuted, textAlign: 'center' },
   form: {
     backgroundColor: C.surface,
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 22,
   },
-  titulo: { fontSize: 20, fontWeight: '700', color: C.text, marginBottom: 20 },
+  titulo: { fontSize: 19, fontWeight: '800', color: C.text, marginBottom: 18, letterSpacing: -0.3 },
   btn: { marginTop: 10 },
-  btnRegistro: { marginTop: 16, borderWidth: 0 },
-  separador: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  btnRegistro: { marginTop: 14, borderWidth: 0 },
+  separador: { flexDirection: 'row', alignItems: 'center', marginVertical: 22 },
   linea: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: C.border },
-  separadorTexto: { color: C.textMuted, fontSize: 13, paddingHorizontal: 12 },
+  separadorTexto: { color: C.textMuted, fontSize: 12, paddingHorizontal: 12, letterSpacing: 0.3 },
   btnGoogle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.bg,
+    backgroundColor: C.surface2,
     borderWidth: 1,
     borderColor: C.border,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
   },
-  btnGoogleEmoji: { fontSize: 18, marginRight: 10, fontWeight: '800', color: '#DB4437' },
+  btnGoogleEmoji: { fontSize: 17, marginRight: 10, fontWeight: '800', color: '#DB4437' },
   btnGoogleTexto: { fontSize: 15, fontWeight: '600', color: C.text },
 });

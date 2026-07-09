@@ -1,12 +1,17 @@
 export type ColorPalette = {
   bg: string;
-  surface: string;
-  primary: string;
+  surface: string;        // bloque bento base
+  surface2: string;       // bloque bento elevado
+  primary: string;        // acento positivo/disponible (flúor en dark)
   primarySoft: string;
+  onPrimary: string;      // texto sobre primary (alto contraste)
+  fluor: string;          // verde neón puro para highlights sutiles
   text: string;
   textMuted: string;
   border: string;
+  borderBright: string;   // borde brillante para bloques destacados
   error: string;
+  critical: string;       // rojo/naranja eléctrico para alertas duras
   warning: string;
   success: string;
   expiryOk: string;
@@ -17,12 +22,17 @@ export type ColorPalette = {
 export const LightColors: ColorPalette = {
   bg: '#F4F4F5',
   surface: '#FFFFFF',
+  surface2: '#FAFAFA',
   primary: '#16A34A',
   primarySoft: '#DCFCE7',
+  onPrimary: '#FFFFFF',
+  fluor: '#16A34A',
   text: '#111827',
   textMuted: '#9CA3AF',
   border: '#E4E4E7',
+  borderBright: '#16A34A40',
   error: '#EF4444',
+  critical: '#E11D48',
   warning: '#F59E0B',
   success: '#16A34A',
   expiryOk: '#16A34A',
@@ -30,20 +40,27 @@ export const LightColors: ColorPalette = {
   expiryCritical: '#EF4444',
 };
 
+// Modo oscuro profundo: pizarra/carbón, blanco puro + gris plata,
+// flúor sutil para lo positivo, eléctrico para lo crítico.
 export const DarkColors: ColorPalette = {
-  bg: '#09090B',
-  surface: '#18181B',
-  primary: '#22C55E',
-  primarySoft: '#14532D',
-  text: '#F9FAFB',
-  textMuted: '#6B7280',
-  border: '#27272A',
-  error: '#F87171',
-  warning: '#FBBF24',
-  success: '#22C55E',
-  expiryOk: '#22C55E',
-  expiryWarning: '#FBBF24',
-  expiryCritical: '#F87171',
+  bg: '#0D0F12',
+  surface: '#14171D',
+  surface2: '#1A1E26',
+  primary: '#4ADE80',
+  primarySoft: '#12251A',
+  onPrimary: '#0D0F12',
+  fluor: '#54FF9F',
+  text: '#FFFFFF',
+  textMuted: '#9BA3B0',
+  border: '#232833',
+  borderBright: '#4ADE8045',
+  error: '#FF5C5C',
+  critical: '#FF4D3D',
+  warning: '#FF9F1C',
+  success: '#4ADE80',
+  expiryOk: '#4ADE80',
+  expiryWarning: '#FF9F1C',
+  expiryCritical: '#FF4D3D',
 };
 
 // Legacy alias — solo para compatibilidad con archivos aún no migrados

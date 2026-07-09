@@ -189,7 +189,7 @@ export function MapaSupermercadosScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} />
 
       {ubicacion && region && (
         <MapView
@@ -198,7 +198,7 @@ export function MapaSupermercadosScreen() {
           showsUserLocation
           showsMyLocationButton
           showsPointsOfInterest={false}
-          customMapStyle={C.text === '#F9FAFB' ? MAPA_OSCURO : MAPA_CLARO}
+          customMapStyle={C.bg === '#0D0F12' ? MAPA_OSCURO : MAPA_CLARO}
         >
           {supermercados.map((super_, idx) => (
             <Marker

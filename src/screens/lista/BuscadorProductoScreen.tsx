@@ -10,7 +10,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
-import { agregarItemLista } from '../../services/firestore';
+import { agregarItemLista } from '../../services/listaService';
 import { useAuthStore } from '../../store/authStore';
 import { useListaStore } from '../../store/listaStore';
 import { buscarProductos } from '../../services/scraping';
@@ -331,7 +331,7 @@ export function BuscadorProductoScreen({ route }: Props) {
   return (
     <View style={s.contenedor}>
       <StatusBar
-        barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'}
+        barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'}
         backgroundColor={C.bg}
       />
 

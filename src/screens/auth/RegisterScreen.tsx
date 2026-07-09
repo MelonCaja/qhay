@@ -42,17 +42,25 @@ export function RegisterScreen({ navigation }: Props) {
     if (!validar()) return;
     setCargando(true);
     try {
-      await registrarUsuario(email.trim(), password, nombre.trim());
-      Alert.alert(
-        '¡Cuenta creada! 📧',
-        `Te enviamos un correo de verificación a ${email.trim()}. Revisa tu bandeja de entrada (y spam) antes de continuar.`,
-        [{ text: 'Entendido', style: 'default' }]
-      );
+      const { requiereConfirmacion } = await registrarUsuario(email.trim(), password, nombre.trim());
+      if (requiereConfirmacion) {
+        // Supabase no emite sesión hasta confirmar el correo → volver al Login
+        Alert.alert(
+          '¡Cuenta creada! 📧',
+          `Te enviamos un correo de verificación a ${email.trim()}. Confírmalo y luego inicia sesión.`,
+          [{ text: 'Entendido', onPress: () => navigation.goBack() }]
+        );
+      }
+      // Con confirmación desactivada ya hay sesión: AppNavigator navega solo.
     } catch (error: unknown) {
       const code = (error as { code?: string }).code;
-      Alert.alert('Error', code === 'auth/email-already-in-use'
-        ? 'Ya existe una cuenta con ese correo'
-        : 'Error al crear la cuenta');
+      const mensaje =
+        code === 'user_already_exists' || code === 'email_exists'
+          ? 'Ya existe una cuenta con ese correo'
+          : code === 'weak_password'
+            ? 'La contraseña es demasiado débil (mínimo 6 caracteres)'
+            : 'Error al crear la cuenta';
+      Alert.alert('Error', mensaje);
     } finally {
       setCargando(false);
     }
@@ -60,7 +68,7 @@ export function RegisterScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <View style={s.header}>
           <Text style={s.titulo}>Crear cuenta</Text>

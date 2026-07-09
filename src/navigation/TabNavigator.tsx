@@ -5,6 +5,7 @@ import { HomeScreen } from '../screens/home/HomeScreen';
 import { DespensaScreen } from '../screens/despensa/DespensaScreen';
 import { RecetasScreen } from '../screens/recetas/RecetasScreen';
 import { ListaComprasScreen } from '../screens/lista/ListaComprasScreen';
+import { ListaUniversalScreen } from '../screens/lista/ListaUniversalScreen';
 import { PerfilScreen } from '../screens/perfil/PerfilScreen';
 import { useColors } from '../context/ThemeContext';
 
@@ -12,6 +13,7 @@ export type TabParamList = {
   Home: undefined;
   Despensa: undefined;
   Recetas: undefined;
+  Super: undefined;
   Lista: undefined;
   Perfil: undefined;
 };
@@ -22,6 +24,7 @@ const iconos: Record<string, string> = {
   Home: '⌂',
   Despensa: '◎',
   Recetas: '◈',
+  Super: '✓',
   Lista: '☰',
   Perfil: '○',
 };
@@ -69,7 +72,8 @@ export function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Inicio' }} />
       <Tab.Screen name="Despensa" component={DespensaScreen} options={{ tabBarLabel: 'Despensa' }} />
       <Tab.Screen name="Recetas" component={RecetasScreen} options={{ tabBarLabel: 'Recetas' }} />
-      <Tab.Screen name="Lista" component={ListaComprasScreen} options={{ tabBarLabel: 'Lista' }} />
+      <Tab.Screen name="Super" component={ListaUniversalScreen} options={{ tabBarLabel: 'Súper' }} />
+      <Tab.Screen name="Lista" component={ListaComprasScreen} options={{ tabBarLabel: 'Precios' }} />
       <Tab.Screen name="Perfil" component={PerfilScreen} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );

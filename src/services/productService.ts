@@ -1,22 +1,11 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  orderBy,
-  startAt,
-  endAt,
-  limit,
-  writeBatch,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { supabase } from '../config/supabase';
 import { Producto } from '../types/producto';
 import type { ProductScraped, PrecioScraped } from '../types/firestore';
+import type { ProductScrapedRow, ProductScrapedInsert } from '../types/supabase';
 
-const COL = 'products_scraped';
-const BATCH_MAX = 450;            // margen bajo el límite de 500 ops por batch
+const TABLA = 'products_scraped';
 const MAX_EDAD_HORAS = 24;        // frescura máxima del índice antes de re-scrapear
+const CLAVE_UNICA = 'supermarket,product_name,brand,format'; // unique del schema
 
 const norm = (s: string) =>
   s.trim().toLowerCase()
@@ -33,88 +22,106 @@ export function idGenericoDe(p: { nombre: string; marca?: string; formato?: stri
 // ─── 5.1 ACTUALIZACIÓN POR LOTES ─────────────────────────────────────────────
 
 /**
- * Persiste resultados del scraping en /products_scraped usando writeBatch
- * (lotes de 450 ops, merge). El doc ID es el idGenerico → re-scrapear el mismo
- * producto sobreescribe en vez de duplicar. 0 lecturas, N/450 commits.
+ * Persiste resultados del scraping como upsert masivo sobre el unique
+ * (supermarket, product_name, brand, format): re-scrapear actualiza el precio
+ * en vez de duplicar. 1 fila por producto×supermercado, 1 round trip total.
  */
 export async function actualizarPreciosBatch(productos: Producto[]): Promise<number> {
-  if (productos.length === 0) return 0;
-  let escritos = 0;
+  // Dedupe por clave única: dos filas iguales en el mismo upsert rompen
+  // ON CONFLICT DO UPDATE ("cannot affect row a second time")
+  const filas = new Map<string, ProductScrapedInsert>();
 
-  for (let i = 0; i < productos.length; i += BATCH_MAX) {
-    const chunk = productos.slice(i, i + BATCH_MAX);
-    const batch = writeBatch(db);
-
-    for (const p of chunk) {
-      if (!p.nombre || p.precios.length === 0) continue;
-      const id = idGenericoDe(p);
-      const precios: PrecioScraped[] = p.precios.map((pr) => ({
-        supermercado: norm(pr.supermercado),
-        precio: pr.precio,
-        ...(pr.precioLista != null ? { precioLista: pr.precioLista } : {}),
-        enOferta: pr.enOferta,
-        certezaDato: pr.certezaDato ?? true,
-        ultimaActualizacion: Timestamp.fromDate(
-          pr.ultimaActualizacion instanceof Date ? pr.ultimaActualizacion : new Date()
-        ),
-      }));
-
-      batch.set(
-        doc(db, COL, id),
-        {
-          nombre: p.nombre,
-          nombreNormalizado: norm(p.nombre),
-          marca: p.marca ?? '',
-          formato: p.formato ?? '',
-          categoria: '',
-          ...(p.imageUrl ? { imageUrl: p.imageUrl } : {}),
-          idGenerico: id,
-          precios,
-          precioMin: Math.min(...precios.map((x) => x.precio)),
-          scrapeadoEn: Timestamp.now(),
-        },
-        { merge: true }
-      );
-      escritos++;
+  for (const p of productos) {
+    if (!p.nombre || p.precios.length === 0) continue;
+    for (const pr of p.precios) {
+      const supermercado = norm(pr.supermercado);
+      const fila: ProductScrapedInsert = {
+        supermarket: supermercado,
+        brand: p.marca ?? '',
+        product_name: p.nombre,
+        format: p.formato ?? '',
+        price: pr.precio,
+        list_price: pr.precioLista ?? null,
+        on_sale: pr.enOferta,
+        certainty: pr.certezaDato ?? true,
+        image_url: p.imageUrl ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      filas.set(`${supermercado}|${p.nombre}|${fila.brand}|${fila.format}`, fila);
     }
-
-    await batch.commit();
   }
-  return escritos;
+  if (filas.size === 0) return 0;
+
+  const { error } = await supabase
+    .from(TABLA)
+    .upsert([...filas.values()], { onConflict: CLAVE_UNICA });
+  if (error) throw error;
+  return filas.size;
 }
 
-// ─── 5.2 BUSCADOR INDEXADO ───────────────────────────────────────────────────
+// ─── 5.2 BUSCADOR FTS NATIVO ─────────────────────────────────────────────────
 
-/**
- * Búsqueda por prefijo sobre nombreNormalizado (índice simple de Firestore).
- * Lecturas acotadas por `max` — mucho más barato/rápido que scraping en vivo.
- */
-export async function buscarIndexado(termino: string, max = 25): Promise<ProductScraped[]> {
-  const t = norm(termino);
-  if (!t) return [];
-  const snap = await getDocs(
-    query(
-      collection(db, COL),
-      orderBy('nombreNormalizado'),
-      startAt(t),
-      endAt(t + '\uf8ff'),
-      limit(max)
-    )
-  );
-  return snap.docs.map((d) => {
-    const data = d.data();
+/** Término libre → tsquery de prefijos: "arroz tuc" → "arroz:* & tuc:*" */
+function aTsQuery(termino: string): string {
+  return norm(termino)
+    .split(' ')
+    .filter((t) => t.length >= 2)
+    .map((t) => `${t}:*`)
+    .join(' & ');
+}
+
+/** Agrupa filas producto×supermercado en un ProductScraped con precios[] */
+function agruparPorProducto(rows: ProductScrapedRow[]): ProductScraped[] {
+  const grupos = new Map<string, ProductScrapedRow[]>();
+  for (const r of rows) {
+    const key = idGenericoDe({ nombre: r.product_name, marca: r.brand, formato: r.format });
+    const grupo = grupos.get(key);
+    if (grupo) grupo.push(r);
+    else grupos.set(key, [r]);
+  }
+
+  return [...grupos.entries()].map(([idGenerico, filas]) => {
+    const precios: PrecioScraped[] = filas.map((f) => ({
+      supermercado: f.supermarket,
+      precio: f.price,
+      ...(f.list_price != null ? { precioLista: f.list_price } : {}),
+      enOferta: f.on_sale,
+      certezaDato: f.certainty,
+      ultimaActualizacion: new Date(f.updated_at),
+    }));
+    const base = filas[0];
     return {
-      id: d.id,
-      ...data,
-      scrapeadoEn: data.scrapeadoEn instanceof Timestamp ? data.scrapeadoEn.toDate() : new Date(0),
-      precios: (data.precios ?? []).map((pr: PrecioScraped) => ({
-        ...pr,
-        ultimaActualizacion: pr.ultimaActualizacion instanceof Timestamp
-          ? pr.ultimaActualizacion.toDate()
-          : pr.ultimaActualizacion,
-      })),
+      id: idGenerico,
+      idGenerico,
+      nombre: base.product_name,
+      nombreNormalizado: norm(base.product_name),
+      marca: base.brand,
+      formato: base.format,
+      categoria: base.category,
+      imageUrl: filas.find((f) => f.image_url)?.image_url ?? undefined,
+      precios,
+      precioMin: Math.min(...precios.map((x) => x.precio)),
+      scrapeadoEn: new Date(Math.max(...filas.map((f) => Date.parse(f.updated_at)))),
     } as ProductScraped;
   });
+}
+
+/**
+ * Búsqueda full-text nativa sobre la columna generada fts (tsvector spanish,
+ * índice GIN): match por prefijo en nombre + marca, sin scraping en vivo.
+ * limit alto porque cada producto ocupa hasta ~6 filas (una por supermercado).
+ */
+export async function buscarIndexado(termino: string, max = 25): Promise<ProductScraped[]> {
+  const tsquery = aTsQuery(termino);
+  if (!tsquery) return [];
+  const { data, error } = await supabase
+    .from(TABLA)
+    .select('*')
+    .textSearch('fts', tsquery, { config: 'spanish' })
+    .order('updated_at', { ascending: false })
+    .limit(max * 6);
+  if (error) throw error;
+  return agruparPorProducto(data as ProductScrapedRow[]).slice(0, max);
 }
 
 /** true si el resultado indexado sigue fresco (no requiere scraping en vivo) */
@@ -124,7 +131,7 @@ export function indiceFresco(productos: ProductScraped[]): boolean {
   return productos.some((p) => (p.scrapeadoEn as Date).getTime() >= limite);
 }
 
-/** Mapea el modelo Firestore al modelo legacy de UI */
+/** Mapea el modelo agrupado al modelo legacy de UI */
 export function aProducto(ps: ProductScraped): Producto {
   return {
     id: ps.id,

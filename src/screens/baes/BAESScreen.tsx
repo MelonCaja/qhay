@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, StatusBa
 import { useNavigation } from '@react-navigation/native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-import { actualizarUsuario } from '../../services/firestore';
+import { actualizarUsuario } from '../../services/profileService';
 
 const SUPERMERCADOS_BAES = [
   { nombre: 'Lider', descuento: '5%', sitio: 'https://www.lider.cl' },
@@ -65,7 +65,7 @@ export function BAESScreen() {
 
   return (
     <ScrollView style={s.contenedor} contentContainerStyle={s.scroll}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
 
       {/* Banner */}
       <View style={s.banner}>

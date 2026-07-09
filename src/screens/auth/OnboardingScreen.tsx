@@ -5,7 +5,7 @@ import {
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Button } from '../../components/common/Button';
 import { useAuthStore } from '../../store/authStore';
-import { completarOnboarding } from '../../services/userService';
+import { completarOnboarding } from '../../services/profileService';
 import type { Utensilio } from '../../types/firestore';
 
 const GUSTOS = [
@@ -254,7 +254,7 @@ export function OnboardingScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
       <View style={s.indicadores}>
         {Array.from({ length: TOTAL_PASOS }, (_, i) => (
           <View key={i} style={[s.punto, i <= paso && s.puntoActivo, i === paso && s.puntoCurrent]} />

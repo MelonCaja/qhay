@@ -13,7 +13,7 @@ import { TotalEstimado } from '../../components/lista/TotalEstimado';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { useListaStore } from '../../store/listaStore';
 import { useAuthStore } from '../../store/authStore';
-import { obtenerLista, actualizarItemLista, eliminarItemLista } from '../../services/firestore';
+import { obtenerLista, actualizarItemLista, eliminarItemLista } from '../../services/listaService';
 import { formatearPrecio } from '../../utils/precioHelper';
 import { ItemLista } from '../../types/producto';
 import { CATEGORIAS_LISTA } from '../../constants/categorias';
@@ -436,7 +436,7 @@ export function ListaComprasScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
 
       {/* Header */}
       <View style={s.header}>

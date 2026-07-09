@@ -8,7 +8,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
-import { actualizarUsuario } from '../../services/firestore';
+import { actualizarUsuario } from '../../services/profileService';
 import { useDespensa } from '../../hooks/useDespensa';
 import { useFavoritosStore } from '../../store/favoritosStore';
 import { getRecetas } from '../../services/recipeService';
@@ -62,7 +62,7 @@ export function PerfilScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
       <View style={s.header}>
         <Text style={s.titulo}>Perfil</Text>
       </View>

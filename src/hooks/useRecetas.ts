@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Receta } from '../types/receta';
 import { Ingrediente } from '../types/ingrediente';
 import {
-  getRecetas,
-  sugerirRecetas,
+  obtenerSugerencias,
   filtrarPorUtensilios,
   RecetaSugerida,
 } from '../services/recipeService';
@@ -18,32 +16,33 @@ interface FiltrosRecetas {
 }
 
 export function useRecetas(despensa: Ingrediente[], filtros: FiltrosRecetas) {
-  const [todasLasRecetas, setTodasLasRecetas] = useState<Receta[]>([]);
+  const [sugeridas, setSugeridas] = useState<RecetaSugerida[]>([]);
   const [cargando, setCargando] = useState(true);
   const { usuario } = useAuthStore();
   const plan = usuario?.plan ?? 'gratuito';
   const utensiliosUsuario = usuario?.utensilios ?? [];
 
+  // Firma estable de la despensa: re-consultar solo cuando cambia el contenido
+  // relevante para el scoring (no en cada referencia nueva del store).
+  const firmaDespensa = useMemo(
+    () => despensa.map((i) => `${i.id}:${i.cantidad}:${i.fechaVencimiento ?? ''}`).join('|'),
+    [despensa]
+  );
+
   useEffect(() => {
-    getRecetas(plan)
-      .then(setTodasLasRecetas)
+    let vigente = true;
+    // JOIN + scoring en PostgreSQL (1 petición); fallback offline en cliente
+    obtenerSugerencias(despensa, plan)
+      .then((lista) => { if (vigente) setSugeridas(lista); })
       .catch(console.error)
-      .finally(() => setCargando(false));
-  }, [plan]);
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, firmaDespensa]);
 
   const recetasFiltradas = useMemo(() => {
-    // Motor de sugerencias: coincidencia + urgencia por vencimiento (0 reads)
-    let lista: RecetaSugerida[] = sugerirRecetas(
-      todasLasRecetas.map((r) => JSON.parse(JSON.stringify(r)) as Receta),
-      despensa
-    );
-
-    // Marcar disponibilidad para la UI de detalle
-    for (const r of lista) {
-      for (const ing of r.ingredientes) {
-        ing.disponibleEnDespensa = !r.ingredientesFaltantes.includes(ing.nombre);
-      }
-    }
+    // Ya vienen puntuadas y ordenadas por scoreSugerencia (RPC o fallback)
+    let lista = [...sugeridas];
 
     if (filtros.restricciones.length > 0) {
       lista = lista.filter((r) =>
@@ -81,7 +80,7 @@ export function useRecetas(despensa: Ingrediente[], filtros: FiltrosRecetas) {
     }
 
     return lista;
-  }, [todasLasRecetas, despensa, filtros, utensiliosUsuario]);
+  }, [sugeridas, filtros, utensiliosUsuario]);
 
   return { recetas: recetasFiltradas, cargando };
 }

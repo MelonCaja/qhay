@@ -24,7 +24,7 @@ export function PasilloCategoriaScreen({ route }: Props) {
   return (
     <View style={s.contenedor}>
       <StatusBar
-        barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'}
+        barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'}
         backgroundColor={C.surface}
       />
       <FlatList

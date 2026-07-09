@@ -71,7 +71,7 @@ export function RecetasScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
       <View style={s.header}>
         <Text style={s.titulo}>Recetas</Text>
         <Text style={s.subtitulo}>{recetas.length} disponibles</Text>

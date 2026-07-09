@@ -1,10 +1,9 @@
-import type { Timestamp } from 'firebase/firestore';
 import type { Macros, PasoReceta } from './receta';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-/** Fecha en Firestore (Timestamp) o hidratada en cliente (Date) */
-export type FsDate = Timestamp | Date;
+/** Fecha hidratada en cliente (legacy: era Timestamp | Date en Firestore) */
+export type FsDate = Date;
 
 export type PlanUsuario = 'gratuito' | 'premium';
 export type SupermercadoId = 'jumbo' | 'lider' | 'unimarc';
@@ -125,6 +124,30 @@ export interface RecipeDoc {
 export interface Recipe extends RecipeDoc {
   id: string;
   porcentajeCoincidencia?: number;     // calculado en cliente vs despensa
+}
+
+// ─── /shopping_lists/{listId} ────────────────────────────────────────────────
+
+/** Ítem de lista universal: sin amarre a cadena; marca/precio opcionales */
+export interface ShoppingItem {
+  id: string;              // generado en cliente (timestamp)
+  productName: string;
+  quantity: number;
+  checked: boolean;
+  brand: string | null;
+  price?: number | null;         // null/"generic" — se resuelve al comprar
+  supermarket?: string | null;
+}
+
+export interface ShoppingListDoc {
+  userId: string;
+  name: string;
+  createdAt: FsDate;
+  items: ShoppingItem[];
+}
+
+export interface ShoppingList extends ShoppingListDoc {
+  id: string;
 }
 
 // ─── /products_scraped/{productId} ───────────────────────────────────────────

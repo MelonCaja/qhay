@@ -13,7 +13,6 @@ import {
 } from '../services/pantryService';
 import { Ingrediente } from '../types/ingrediente';
 import { IngredienteReceta } from '../types/receta';
-import type { PantryItem } from '../types/firestore';
 
 const DESPENSA_KEY = '@qhay_despensa';
 
@@ -24,12 +23,12 @@ export function useDespensa() {
   } = useDespensaStore();
   const { usuario } = useAuthStore();
 
-  // Cargar despensa desde Firestore (con fallback offline)
+  // Cargar despensa desde Supabase (con fallback offline)
   const cargarDespensa = useCallback(async () => {
     if (!usuario) return;
     setCargando(true);
     try {
-      const datos = (await obtenerItems(usuario.id)) as unknown as Ingrediente[];
+      const datos = await obtenerItems(usuario.id);
       setIngredientes(datos);
       await AsyncStorage.setItem(DESPENSA_KEY, JSON.stringify(datos));
     } catch {
@@ -54,18 +53,17 @@ export function useDespensa() {
   const agregar = async (ingrediente: Omit<Ingrediente, 'id'>): Promise<string | undefined> => {
     if (!usuario) return undefined;
     try {
-      // Detectar duplicado en memoria (0 lecturas Firestore extra)
+      // Detectar duplicado en memoria (0 lecturas extra)
       const nombreNorm = ingrediente.nombre.trim().toLowerCase();
       const existente = ingredientes.find(
         (i) => i.nombre.trim().toLowerCase() === nombreNorm,
       );
 
       if (existente) {
-        // Solo incrementa — no crea documento nuevo
-        await incrementarFrecuencia(usuario.id, existente.id);
-        actualizarIngrediente(existente.id, {
-          frecuenciaUso: (existente.frecuenciaUso ?? 1) + 1,
-        });
+        // Solo incrementa — no crea fila nueva
+        const nuevoValor = (existente.frecuenciaUso ?? 1) + 1;
+        await incrementarFrecuencia(existente.id, nuevoValor);
+        actualizarIngrediente(existente.id, { frecuenciaUso: nuevoValor });
         return existente.id;
       }
 
@@ -82,7 +80,7 @@ export function useDespensa() {
   const eliminar = async (id: string) => {
     if (!usuario) return;
     try {
-      await eliminarItem(usuario.id, id);
+      await eliminarItem(id);
       eliminarIngrediente(id);
     } catch (error) {
       console.error('Error eliminando ingrediente:', error);
@@ -92,18 +90,15 @@ export function useDespensa() {
 
   /**
    * "Receta realizada": descuenta ingredientes usados de la despensa
-   * en un solo batch y sincroniza el store local.
+   * en un solo RPC atómico y sincroniza el store local.
    */
   const descontarReceta = async (
     ingredientesReceta: IngredienteReceta[]
   ): Promise<DescuentoReceta[]> => {
     if (!usuario) return [];
-    const descuentos = calcularDescuentos(
-      ingredientesReceta,
-      ingredientes as unknown as PantryItem[]
-    );
+    const descuentos = calcularDescuentos(ingredientesReceta, ingredientes);
     if (descuentos.length === 0) return [];
-    await aplicarDescuentos(usuario.id, descuentos);
+    await aplicarDescuentos(descuentos);
     for (const d of descuentos) {
       if (d.cantidadRestante <= 0) {
         eliminarIngrediente(d.itemId);

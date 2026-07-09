@@ -238,7 +238,7 @@ export function ScanearBoletaScreen() {
     const totalSel = items.filter((i) => i.seleccionado).length;
     return (
       <View style={[s.flex, { backgroundColor: C.bg }]}>
-        <StatusBar barStyle={C.text === '#F9FAFB' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+        <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
         <View style={s.revHeader}>
           <Text style={s.revTitulo}>
             {modo === 'barras' ? 'Productos escaneados' : 'Productos detectados'}
