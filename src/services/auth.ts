@@ -5,6 +5,11 @@ import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { supabase } from '../config/supabase';
 import { TERMINOS_VERSION } from '../legal/terms';
 
+// Cierra el popup/pestaña de auth si la app fue reabierta por el redirect
+// (no-op en Android; necesario en iOS/web para que la sesión del navegador
+// no quede colgada tras volver a la app)
+WebBrowser.maybeCompleteAuthSession();
+
 export interface ResultadoRegistro {
   user: User | null;
   /** true = Supabase exige confirmar el correo antes de emitir sesión */
@@ -17,9 +22,10 @@ export interface ResultadoRegistro {
 // El perfil en /profiles lo crea el trigger handle_new_user (schema.sql).
 // Devuelve null si el usuario cierra el navegador sin completar el login.
 export async function loginConGoogle(): Promise<Session | null> {
-  // exp://<ip>:8081 en Expo Go, qhay:// en builds — debe estar en la
-  // allowlist: Supabase → Auth → URL Configuration → Redirect URLs.
-  const redirectTo = makeRedirectUri();
+  // exp://<ip>:8081 en Expo Go (el scheme explícito se ignora ahí),
+  // qhay://auth en builds — ambos deben estar en la allowlist:
+  // Supabase → Auth → URL Configuration → Redirect URLs (qhay://** y exp://**).
+  const redirectTo = makeRedirectUri({ scheme: 'qhay', path: 'auth' });
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -27,25 +33,35 @@ export async function loginConGoogle(): Promise<Session | null> {
   });
   if (error) throw error;
 
+  // 'cancel' | 'dismiss' = el usuario cerró el navegador → salida silenciosa
   const resultado = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (resultado.type !== 'success') return null;
 
-  // Flujo implícito: los tokens vuelven en el fragment del redirect
+  // getQueryParams lee tanto el query (?a=b) como el fragment (#a=b)
   const { params, errorCode } = QueryParams.getQueryParams(resultado.url);
   if (errorCode) throw new Error(errorCode);
   if (params.error_description) throw new Error(params.error_description);
 
+  // Flujo implícito: tokens directos en el redirect
   const { access_token, refresh_token } = params;
-  if (!access_token || !refresh_token) {
-    throw new Error('Respuesta OAuth sin tokens de sesión');
+  if (access_token && refresh_token) {
+    const { data: sesion, error: errorSesion } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
+    if (errorSesion) throw errorSesion;
+    return sesion.session;
   }
 
-  const { data: sesion, error: errorSesion } = await supabase.auth.setSession({
-    access_token,
-    refresh_token,
-  });
-  if (errorSesion) throw errorSesion;
-  return sesion.session;
+  // Flujo PKCE: vuelve ?code= en lugar de tokens
+  if (params.code) {
+    const { data: sesion, error: errorSesion } =
+      await supabase.auth.exchangeCodeForSession(params.code);
+    if (errorSesion) throw errorSesion;
+    return sesion.session;
+  }
+
+  throw new Error('Respuesta OAuth sin tokens de sesión');
 }
 
 // Registro con email y contraseña. name/terms_version viajan en la metadata

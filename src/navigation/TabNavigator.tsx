@@ -102,7 +102,24 @@ export function TabNavigator() {
           shadowRadius: 16,
           elevation: 10,
         },
-        tabBarItemStyle: { justifyContent: 'center' },
+        // Anular la geometría heredada de react-navigation para que el óvalo
+        // quede centrado exacto en los 60px de la píldora
+        tabBarItemStyle: {
+          height: 60,
+          paddingVertical: 0,
+          paddingHorizontal: 0,
+          margin: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        tabBarIconStyle: {
+          flex: 0,
+          width: 52,
+          height: 36,
+          margin: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />

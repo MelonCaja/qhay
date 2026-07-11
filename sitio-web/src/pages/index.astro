@@ -45,7 +45,7 @@ const pasos = [
       barata <em>tu</em> lista completa — no producto por producto.
     </p>
     <div class="hero-cta">
-      <a class="btn-primario" href="mailto:contacto@qhay.cl?subject=Quiero%20probar%20Qhay">Quiero probarla</a>
+      <button type="button" class="btn-primario" data-abrir-contacto>Quiero probarla</button>
       <a class="btn-secundario" href="#como-funciona">Cómo funciona</a>
     </div>
   </header>
@@ -81,9 +81,106 @@ const pasos = [
   <section class="seccion cta-final">
     <h2>Deja de adivinar dónde comprar.</h2>
     <p>Qhay hace la pega de comparar. Tú solo decides.</p>
-    <a class="btn-primario" href="mailto:contacto@qhay.cl?subject=Quiero%20probar%20Qhay">Escríbenos</a>
+    <button type="button" class="btn-primario" data-abrir-contacto>Escríbenos</button>
   </section>
+
+  <!-- Modal de contacto -->
+  <dialog id="contacto-modal" class="modal" aria-labelledby="contacto-titulo">
+    <div class="modal-card">
+      <button type="button" class="modal-cerrar" data-cerrar-contacto aria-label="Cerrar">✕</button>
+
+      <div id="contacto-cuerpo">
+        <h2 id="contacto-titulo">Escríbenos</h2>
+        <p class="modal-sub">Cuéntanos qué necesitas y te respondemos a la brevedad.</p>
+
+        <form id="contacto-form">
+          <label class="campo">
+            <span>Correo electrónico</span>
+            <input type="email" name="email" required autocomplete="email" placeholder="tu@correo.cl" />
+          </label>
+          <label class="campo">
+            <span>Mensaje</span>
+            <textarea name="mensaje" required minlength="10" rows="5" placeholder="Hola, quiero probar Qhay…"></textarea>
+          </label>
+          <p class="form-error" id="contacto-error" hidden>
+            No pudimos enviar tu mensaje. Intenta de nuevo en unos minutos o
+            escríbenos directo a contacto@qhay.cl.
+          </p>
+          <button type="submit" class="btn-primario btn-enviar" id="contacto-enviar">Enviar mensaje</button>
+        </form>
+      </div>
+
+      <div class="form-exito" id="contacto-exito" hidden>
+        <span class="exito-emoji" aria-hidden="true">🎉</span>
+        <h2>¡Mensaje enviado con éxito!</h2>
+        <p>Nos pondremos en contacto contigo pronto.</p>
+        <button type="button" class="btn-secundario" data-cerrar-contacto>Cerrar</button>
+      </div>
+    </div>
+  </dialog>
 </Base>
+
+<script>
+  // Formulario Formspree con destino contacto@qhay.cl
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnjkekjg';
+
+  const modal = document.getElementById('contacto-modal') as HTMLDialogElement;
+  const cuerpo = document.getElementById('contacto-cuerpo') as HTMLDivElement;
+  const form = document.getElementById('contacto-form') as HTMLFormElement;
+  const btnEnviar = document.getElementById('contacto-enviar') as HTMLButtonElement;
+  const errorMsg = document.getElementById('contacto-error') as HTMLParagraphElement;
+  const exito = document.getElementById('contacto-exito') as HTMLDivElement;
+
+  const resetear = () => {
+    form.reset();
+    btnEnviar.disabled = false;
+    btnEnviar.textContent = 'Enviar mensaje';
+    errorMsg.hidden = true;
+    exito.hidden = true;
+    cuerpo.hidden = false;
+  };
+
+  document.querySelectorAll('[data-abrir-contacto]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      resetear();
+      modal.showModal();
+    });
+  });
+
+  document.querySelectorAll('[data-cerrar-contacto]').forEach((btn) => {
+    btn.addEventListener('click', () => modal.close());
+  });
+
+  // Cierre limpio al hacer clic en el backdrop (el <dialog> mismo)
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.close();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+
+    const datos = new FormData(form);
+    btnEnviar.disabled = true;
+    btnEnviar.textContent = 'Enviando…';
+    errorMsg.hidden = true;
+
+    try {
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: datos,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      cuerpo.hidden = true;
+      exito.hidden = false;
+    } catch {
+      errorMsg.hidden = false;
+      btnEnviar.disabled = false;
+      btnEnviar.textContent = 'Enviar mensaje';
+    }
+  });
+</script>
 
 <style>
   .hero {
@@ -130,18 +227,25 @@ const pasos = [
     color: var(--bg);
     font-weight: 700;
     font-size: 15px;
+    font-family: inherit;
     padding: 13px 28px;
     border-radius: 100px;
+    border: none;
+    cursor: pointer;
     transition: background 0.15s;
   }
   .btn-primario:hover { background: var(--fluor); }
+  .btn-primario:disabled { opacity: 0.6; cursor: wait; }
   .btn-secundario {
     color: var(--text);
     font-weight: 600;
     font-size: 15px;
+    font-family: inherit;
+    background: transparent;
     padding: 13px 28px;
     border-radius: 100px;
     border: 1px solid var(--border);
+    cursor: pointer;
     transition: border-color 0.15s;
   }
   .btn-secundario:hover { border-color: var(--muted); }
@@ -187,4 +291,80 @@ const pasos = [
   .cta-final { text-align: center; padding-top: 96px; }
   .cta-final h2 { font-size: clamp(24px, 4.5vw, 34px); letter-spacing: -0.02em; }
   .cta-final p { color: var(--muted); margin: 12px 0 28px; }
+
+  /* ── Modal de contacto ── */
+  .modal {
+    border: none;
+    background: transparent;
+    padding: 16px;
+    max-width: 100vw;
+    max-height: 100vh;
+  }
+  .modal::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+  }
+  .modal-card {
+    position: relative;
+    width: min(440px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px 28px 28px;
+    color: var(--text);
+  }
+  .modal-card h2 { font-size: 22px; letter-spacing: -0.02em; }
+  .modal-sub { color: var(--muted); font-size: 14px; margin: 8px 0 20px; }
+  .modal-cerrar {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 34px;
+    height: 34px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .modal-cerrar:hover { color: var(--text); border-color: var(--muted); }
+
+  #contacto-form { display: grid; gap: 14px; }
+  .campo { display: grid; gap: 6px; }
+  .campo span { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .campo input,
+  .campo textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14.5px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.15s;
+  }
+  .campo input:focus,
+  .campo textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .campo input::placeholder,
+  .campo textarea::placeholder { color: var(--muted); opacity: 0.6; }
+  .btn-enviar { width: 100%; margin-top: 4px; }
+  .form-error {
+    font-size: 13px;
+    color: #ff5c5c;
+    background: rgba(255, 92, 92, 0.08);
+    border: 1px solid rgba(255, 92, 92, 0.25);
+    border-radius: 12px;
+    padding: 10px 14px;
+  }
+  .form-exito { text-align: center; display: grid; gap: 10px; padding: 12px 0 4px; }
+  .exito-emoji { font-size: 40px; }
+  .form-exito h2 { font-size: 20px; }
+  .form-exito p { color: var(--muted); font-size: 14px; }
+  .form-exito .btn-secundario { justify-self: center; margin-top: 8px; }
 </style>
