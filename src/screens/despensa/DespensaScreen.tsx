@@ -11,6 +11,7 @@ import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useDespensaStore } from '../../store/despensaStore';
 import { VencimientoAlert } from '../../components/despensa/VencimientoAlert';
 import { diasParaVencer } from '../../utils/fechaHelper';
+import { ESPACIO_TAB_BAR } from '../../constants/layout';
 
 // ── Pasillos del supermercado ─────────────────────────────────────────────────
 const PASILLOS = [
@@ -192,7 +193,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   fabTexto: { color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 },
-  lista: { padding: 16, paddingBottom: 32 },
+  lista: { padding: 16, paddingBottom: ESPACIO_TAB_BAR },
   columnas: { gap: 10 },
 
   // Stats bento

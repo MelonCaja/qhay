@@ -16,6 +16,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Ingrediente } from '../../types/ingrediente';
+import { ESPACIO_TAB_BAR } from '../../constants/layout';
 
 // ── Mapa de categorías relacionadas para recomendaciones ──────────────────────
 const RELACIONADAS: Record<string, { label: string; emoji: string; query: string }> = {
@@ -395,7 +396,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   },
   avatarTexto: { fontSize: 16, fontWeight: '700', color: C.primary },
 
-  contenido: { padding: 20, gap: 16 },
+  contenido: { padding: 20, gap: 16, paddingBottom: ESPACIO_TAB_BAR },
 
   statsRow: {
     flexDirection: 'row',

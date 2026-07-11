@@ -19,14 +19,23 @@ export function TerminosModal({ visible, onCerrar, onAceptar }: TerminosModalPro
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onCerrar}>
-      <Pressable style={s.overlay} onPress={onCerrar}>
-        <Pressable style={s.sheet} onPress={() => {}}>
+      <View style={s.overlay}>
+        {/* Capa de cierre detrás del sheet: no envuelve al ScrollView, así
+            ningún Pressable ancestro intercepta el gesto de scroll en iOS */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCerrar} />
+        <View style={s.sheet}>
           <View style={s.handle} />
           <View style={s.header}>
             <Text style={s.titulo}>Términos y Condiciones</Text>
             <Text style={s.version}>v{TERMINOS_VERSION}</Text>
           </View>
-          <ScrollView style={s.scroll} showsVerticalScrollIndicator>
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={s.scrollContenido}
+            showsVerticalScrollIndicator
+            bounces
+            nestedScrollEnabled
+          >
             <Text style={s.texto}>{TERMINOS_Y_CONDICIONES}</Text>
           </ScrollView>
           <View style={s.footer}>
@@ -42,8 +51,8 @@ export function TerminosModal({ visible, onCerrar, onAceptar }: TerminosModalPro
               </TouchableOpacity>
             )}
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -68,7 +77,10 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   },
   titulo: { fontSize: 17, fontWeight: '800', color: C.text },
   version: { fontSize: 12, color: C.textMuted, fontWeight: '600' },
-  scroll: { paddingHorizontal: 20 },
+  // flexShrink:1 = el ScrollView se acota al maxHeight del sheet en vez de
+  // crecer al alto del contenido (sin esto el texto quedaba recortado y fijo)
+  scroll: { paddingHorizontal: 20, flexShrink: 1 },
+  scrollContenido: { paddingBottom: 8 },
   texto: { fontSize: 13, lineHeight: 20, color: C.text, paddingVertical: 16 },
   footer: {
     flexDirection: 'row', gap: 10, padding: 16, paddingBottom: 28,

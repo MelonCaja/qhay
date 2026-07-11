@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { ProductoItem } from '../../components/lista/ProductoItem';
@@ -17,6 +18,7 @@ import { obtenerLista, actualizarItemLista, eliminarItemLista } from '../../serv
 import { formatearPrecio } from '../../utils/precioHelper';
 import { ItemLista } from '../../types/producto';
 import { CATEGORIAS_LISTA } from '../../constants/categorias';
+import { ESPACIO_TAB_BAR } from '../../constants/layout';
 
 // ── Algoritmo comparador ──────────────────────────────────────────────────────
 
@@ -313,7 +315,8 @@ function MisListasModal({ visible, onClose }: { visible: boolean; onClose: () =>
 
 // ── Pantalla principal ────────────────────────────────────────────────────────
 
-export function ListaComprasScreen() {
+// `embebida`: se renderiza dentro de ListasScreen (sin StatusBar ni título propios)
+export function ListaComprasScreen({ embebida = false }: { embebida?: boolean }) {
   const C = useColors();
   const s = makeStyles(C);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -436,12 +439,14 @@ export function ListaComprasScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+      {!embebida && (
+        <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.surface} />
+      )}
 
       {/* Header */}
-      <View style={s.header}>
+      <View style={[s.header, embebida && s.headerEmbebido]}>
         <View>
-          <Text style={s.titulo}>Lista de compras</Text>
+          {!embebida && <Text style={s.titulo}>Lista de compras</Text>}
           <Text style={s.subtitulo}>{pendientes.length} pendientes · {comprados.length} comprados</Text>
         </View>
         <View style={s.headerAcciones}>
@@ -460,7 +465,7 @@ export function ListaComprasScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.categoriasContainer}
-          style={s.categoriasScroll}
+          style={[s.categoriasScroll, embebida && s.categoriasScrollEmbebido]}
         >
           <TouchableOpacity
             style={[s.categoriaChip, categoriaFiltro === null && s.categoriaChipActivo]}
@@ -476,7 +481,11 @@ export function ListaComprasScreen() {
               style={[s.categoriaChip, categoriaFiltro === cat.id && s.categoriaChipActivo]}
               onPress={() => setCategoriaFiltro(categoriaFiltro === cat.id ? null : cat.id)}
             >
-              <Text style={s.categoriaChipEmoji}>{cat.emoji}</Text>
+              <MaterialCommunityIcons
+                name={cat.icono as any}
+                size={15}
+                color={categoriaFiltro === cat.id ? C.primary : C.textMuted}
+              />
               <Text style={[s.categoriaChipTexto, categoriaFiltro === cat.id && s.categoriaChipTextoActivo]}>
                 {cat.label}
               </Text>
@@ -558,6 +567,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: C.surface,
   },
+  headerEmbebido: { paddingTop: 10, paddingBottom: 10, backgroundColor: 'transparent' },
   titulo: { fontSize: 24, fontWeight: '700', color: C.text },
   subtitulo: { fontSize: 13, color: C.textMuted, marginTop: 2 },
   headerAcciones: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -584,6 +594,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
 
   // Filtro categorías
   categoriasScroll: { backgroundColor: C.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
+  categoriasScrollEmbebido: { backgroundColor: 'transparent', borderBottomWidth: 0, flexGrow: 0 },
   categoriasContainer: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   categoriaChip: {
     flexDirection: 'row',
@@ -592,7 +603,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 100,
-    backgroundColor: C.bg,
+    backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
   },
@@ -601,7 +612,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   categoriaChipTexto: { fontSize: 12, fontWeight: '500', color: C.textMuted },
   categoriaChipTextoActivo: { color: '#fff' },
 
-  lista: { padding: 16, paddingBottom: 32 },
+  lista: { padding: 16, paddingBottom: ESPACIO_TAB_BAR },
   seccionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

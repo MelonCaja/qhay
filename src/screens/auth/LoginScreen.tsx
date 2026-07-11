@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   KeyboardAvoidingView, Platform, Alert, StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { OlvidePasswordModal } from '../../components/auth/OlvidePasswordModal';
 import { iniciarSesion, loginConGoogle, reenviarVerificacion } from '../../services/auth';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -23,30 +23,20 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [mostrar, setMostrar] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [modalPassword, setModalPassword] = useState(false);
   const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
 
-  // Este client ID debe estar en Supabase → Auth → Providers → Google →
-  // "Authorized Client IDs" para que signInWithIdToken acepte el id_token.
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com',
-    iosClientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com',
-    androidClientId: '977133613009-q39ksiure7sfropd4lk1etm2at431885.apps.googleusercontent.com',
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleLogin(id_token);
-    }
-  }, [response]);
-
-  const handleGoogleLogin = async (idToken: string) => {
+  // OAuth vía navegador contra Supabase (solo Web Client ID, configurado en
+  // el dashboard): funciona en Expo Go/Dev Client sin client IDs nativos.
+  const handleGoogleLogin = async () => {
     setCargando(true);
     try {
-      await loginConGoogle(idToken);
+      await loginConGoogle();
+      // null = usuario canceló el navegador → sin alerta, sin sesión.
+      // Con sesión, AppNavigator navega solo al poblarse el usuario.
     } catch (error) {
       console.error('[login] Error Google:', error);
-      Alert.alert('Error', 'No pudimos iniciar sesión con Google.');
+      Alert.alert('Error', 'No pudimos iniciar sesión con Google. Inténtalo de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -125,6 +115,9 @@ export function LoginScreen({ navigation }: Props) {
             iconoDerecho={<Text style={{ fontSize: 16 }}>{mostrar ? '🙈' : '👁️'}</Text>}
             onPressDerecho={() => setMostrar(!mostrar)}
           />
+          <TouchableOpacity onPress={() => setModalPassword(true)} hitSlop={{ top: 8, bottom: 8 }}>
+            <Text style={s.olvidePassword}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
           <Button titulo="Iniciar sesión" onPress={handleLogin} cargando={cargando} estiloContenedor={s.btn} />
           
           <View style={s.separador}>
@@ -133,10 +126,10 @@ export function LoginScreen({ navigation }: Props) {
             <View style={s.linea} />
           </View>
 
-          <TouchableOpacity 
-            style={s.btnGoogle} 
-            onPress={() => promptAsync()} 
-            disabled={!request || cargando}
+          <TouchableOpacity
+            style={s.btnGoogle}
+            onPress={handleGoogleLogin}
+            disabled={cargando}
           >
             <Text style={s.btnGoogleEmoji}>G</Text>
             <Text style={s.btnGoogleTexto}>Continuar con Google</Text>
@@ -150,6 +143,12 @@ export function LoginScreen({ navigation }: Props) {
           />
         </View>
       </ScrollView>
+
+      <OlvidePasswordModal
+        visible={modalPassword}
+        onCerrar={() => setModalPassword(false)}
+        emailInicial={email.trim()}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -176,6 +175,13 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
     padding: 22,
   },
   titulo: { fontSize: 19, fontWeight: '800', color: C.text, marginBottom: 18, letterSpacing: -0.3 },
+  olvidePassword: {
+    color: C.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'right',
+    marginTop: -4,
+  },
   btn: { marginTop: 10 },
   btnRegistro: { marginTop: 14, borderWidth: 0 },
   separador: { flexDirection: 'row', alignItems: 'center', marginVertical: 22 },

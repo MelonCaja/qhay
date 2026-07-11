@@ -373,7 +373,7 @@ export function BuscadorProductoScreen({ route }: Props) {
       {filtroActivo && categoriaLabel && (
         <View style={s.filtroActivoRow}>
           <View style={s.filtroActivoChip}>
-            <Text style={s.filtroActivoEmoji}>{categoriaLabel.emoji}</Text>
+            <MaterialCommunityIcons name={categoriaLabel.icono as any} size={14} color={C.primary} />
             <Text style={s.filtroActivoLabel}>{categoriaLabel.label}</Text>
             <TouchableOpacity onPress={() => setFiltroCategoria(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <MaterialCommunityIcons name="close" size={14} color={C.primary} />
@@ -393,7 +393,7 @@ export function BuscadorProductoScreen({ route }: Props) {
       {/* ── Sin resultados del API ── */}
       {!buscando && query.length > 1 && resultados.length === 0 && (
         <View style={s.sinResultados}>
-          <Text style={s.sinResultadosEmoji}>🔍</Text>
+          <MaterialCommunityIcons name="magnify" size={44} color={C.textMuted} />
           <Text style={s.sinResultadosTitulo}>Sin resultados para "{query}"</Text>
           <Text style={s.sinResultadosSub}>No encontramos ese producto en los supermercados</Text>
           <TouchableOpacity style={s.btnManual} onPress={handleAgregarManual}>
@@ -405,7 +405,11 @@ export function BuscadorProductoScreen({ route }: Props) {
       {/* ── Sin resultados del filtro local ── */}
       {!buscando && resultados.length > 0 && productosFiltrados.length === 0 && filtroActivo && (
         <View style={s.sinResultados}>
-          <Text style={s.sinResultadosEmoji}>{categoriaLabel?.emoji ?? '🔎'}</Text>
+          <MaterialCommunityIcons
+            name={(categoriaLabel?.icono ?? 'magnify') as any}
+            size={44}
+            color={C.textMuted}
+          />
           <Text style={s.sinResultadosTitulo}>Nada en {categoriaLabel?.label}</Text>
           <Text style={s.sinResultadosSub}>
             Los {resultados.length} resultados no corresponden a esta categoría
@@ -488,7 +492,11 @@ export function BuscadorProductoScreen({ route }: Props) {
                 style={[s.chip, !filtroActivo && s.chipActivo]}
                 onPress={() => { setFiltroCategoria(null); setModalFiltros(false); }}
               >
-                <Text style={s.chipEmoji}>✨</Text>
+                <MaterialCommunityIcons
+                  name="view-grid-outline"
+                  size={16}
+                  color={!filtroActivo ? C.primary : C.textMuted}
+                />
                 <Text style={[s.chipLabel, !filtroActivo && s.chipLabelActivo]}>Todos</Text>
               </TouchableOpacity>
 
@@ -500,7 +508,11 @@ export function BuscadorProductoScreen({ route }: Props) {
                     style={[s.chip, activo && s.chipActivo]}
                     onPress={() => { setFiltroCategoria(cat.id); setModalFiltros(false); }}
                   >
-                    <Text style={s.chipEmoji}>{cat.emoji}</Text>
+                    <MaterialCommunityIcons
+                      name={cat.icono as any}
+                      size={16}
+                      color={activo ? C.primary : C.textMuted}
+                    />
                     <Text style={[s.chipLabel, activo && s.chipLabelActivo]}
                           numberOfLines={1}>
                       {cat.label}

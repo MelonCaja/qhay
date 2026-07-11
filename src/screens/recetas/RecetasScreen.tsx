@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { RecetaCard } from '../../components/recetas/RecetaCard';
@@ -13,6 +14,7 @@ import { useRecetas } from '../../hooks/useRecetas';
 import { useAuthStore } from '../../store/authStore';
 import { Receta } from '../../types/receta';
 import { obtenerTagsFitness } from '../../utils/fitnessUtils';
+import { ESPACIO_TAB_BAR } from '../../constants/layout';
 
 type Tab = 'todas' | 'despensa' | 'faciles' | 'estudiantes' | 'fitness';
 
@@ -21,7 +23,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'despensa', label: 'Mi despensa' },
   { id: 'faciles', label: 'Fáciles' },
   { id: 'estudiantes', label: 'Estudiantes' },
-  { id: 'fitness', label: '💪 Fitness' },
+  { id: 'fitness', label: 'Fitness' },
 ];
 
 export function RecetasScreen() {
@@ -100,7 +102,7 @@ export function RecetasScreen() {
             onPress={() => setSoloMisUtensilios(!soloMisUtensilios)}
           >
             <Text style={[s.tabTexto, soloMisUtensilios && s.tabTextoActivo]}>
-              🍳 Mis utensilios
+              Mis utensilios
             </Text>
           </TouchableOpacity>
         )}
@@ -136,11 +138,19 @@ export function RecetasScreen() {
       )}
 
       {recetas.length === 0 ? (
+        // Empty state amable: cubre también el catálogo aún sin seed en
+        // producción (comportamiento esperado, no un fetch roto)
         <View style={s.vacio}>
-          <Text style={s.vacioEmoji}>🍽️</Text>
-          <Text style={s.vacioTitulo}>Sin recetas</Text>
+          <View style={s.vacioIcono}>
+            <MaterialCommunityIcons name="chef-hat" size={40} color={C.primary} />
+          </View>
+          <Text style={s.vacioTitulo}>
+            {tabActiva === 'todas' ? 'Pronto verás tus recetas aquí' : 'Sin recetas'}
+          </Text>
           <Text style={s.vacioSub}>
-            {tabActiva === 'despensa'
+            {tabActiva === 'todas'
+              ? 'Estamos preparando el recetario. Mientras tanto, llena tu despensa para recibir sugerencias a tu medida.'
+              : tabActiva === 'despensa'
               ? 'Agrega ingredientes a tu despensa para ver qué puedes cocinar'
               : tabActiva === 'fitness'
               ? 'No hay recetas fitness con estos filtros'
@@ -349,9 +359,17 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   comparadorLimpiarTexto: { color: '#006064', fontSize: 16, fontWeight: '700' },
   comparadorHint: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: C.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
   comparadorHintTexto: { fontSize: 12, color: C.textMuted, fontStyle: 'italic' },
-  lista: { padding: 16 },
+  lista: { padding: 16, paddingBottom: ESPACIO_TAB_BAR },
   vacio: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 8 },
-  vacioEmoji: { fontSize: 52, marginBottom: 4 },
+  vacioIcono: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: C.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
   vacioTitulo: { fontSize: 19, fontWeight: '700', color: C.text },
   vacioSub: { fontSize: 14, color: C.textMuted, textAlign: 'center', lineHeight: 20 },
   // Modal comparador

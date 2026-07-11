@@ -13,15 +13,28 @@ import { Usuario } from '../types/usuario';
 
 const USUARIO_KEY = '@qhay_usuario';
 
+// Guard de módulo: la suscripción a auth debe existir UNA sola vez (la sostiene
+// el primer componente montado, en la práctica AppNavigator). Sin esto, cada
+// pantalla con useAuth() montaba su propio observador y re-hidrataba el caché
+// viejo sobre el store (usuario con onboardingCompletado=false) → el navigator
+// alternaba Onboarding↔Main en un loop infinito al terminar la configuración.
+let authInicializado = false;
+
 export function useAuth() {
   const {
     usuario, cargando, emailVerificado,
-    setUsuario, setCargando, setEmailVerificado, actualizarUsuario,
+    setUsuario, setCargando, setEmailVerificado,
+    actualizarUsuario: actualizarUsuarioStore,
   } = useAuthStore();
 
   useEffect(() => {
+    if (authInicializado) return;
+    authInicializado = true;
+
+    // Hidratación rápida desde caché SOLO si el store aún está vacío:
+    // nunca pisar un usuario ya cargado con datos viejos del disco.
     AsyncStorage.getItem(USUARIO_KEY).then((data) => {
-      if (data) {
+      if (data && !useAuthStore.getState().usuario) {
         try { setUsuario(JSON.parse(data)); } catch { /* datos corruptos */ }
       }
     });
@@ -91,8 +104,21 @@ export function useAuth() {
       }
     });
 
-    return unsub;
+    return () => {
+      authInicializado = false;
+      unsub();
+    };
   }, []);
+
+  // Actualiza store + caché AsyncStorage en conjunto: si divergen, el próximo
+  // remount hidrata datos viejos (origen del loop de onboarding).
+  const actualizarUsuario = (datos: Partial<Usuario>) => {
+    actualizarUsuarioStore(datos);
+    const actualizado = useAuthStore.getState().usuario;
+    if (actualizado) {
+      AsyncStorage.setItem(USUARIO_KEY, JSON.stringify(actualizado)).catch(() => {});
+    }
+  };
 
   const logout = async () => {
     try {

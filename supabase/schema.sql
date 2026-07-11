@@ -189,6 +189,11 @@ alter table public.recipes add column if not exists is_student         boolean n
 alter table public.recipes add column if not exists restrictions       text[] not null default '{}';
 alter table public.recipes add column if not exists seasons            text[] not null default '{}';
 
+-- Sprint seed — categoría gastronómica: valores = ids EXACTOS de GUSTOS del
+-- onboarding (chileno|italiano|asiatico|mexicano|fitness|dulce|picante|economico)
+alter table public.recipes add column if not exists category           text not null default '';
+create index if not exists recipes_category_idx on public.recipes (category);
+
 alter table public.recipes enable row level security;
 
 drop policy if exists "recipes_public_read" on public.recipes;
@@ -215,6 +220,9 @@ create index if not exists recipe_ingredients_recipe_idx on public.recipe_ingred
 -- +30, <=7: +15, cap 60). SECURITY INVOKER + filtro auth.uid() → RLS aplica.
 create extension if not exists unaccent;
 
+-- drop: agregar 'category' cambia el tipo de retorno (OR REPLACE no basta)
+drop function if exists public.sugerir_recetas();
+
 create or replace function public.sugerir_recetas()
 returns table (
   id uuid,
@@ -232,6 +240,7 @@ returns table (
   is_student boolean,
   restrictions text[],
   seasons text[],
+  category text,
   ingredients jsonb,   -- [{nombre,cantidad,unidad,equivalenciaSinBalanza,opcional,disponibleEnDespensa}]
   match_pct integer,
   score integer,
@@ -292,7 +301,7 @@ as $$
   select
     r.id, r.title, r.description, r.image_url, r.steps, r.utensils_required,
     r.prep_time_minutes, r.difficulty, r.servings, r.calories, r.macros,
-    r.is_fitness, r.is_student, r.restrictions, r.seasons,
+    r.is_fitness, r.is_student, r.restrictions, r.seasons, r.category,
     coalesce(a.ingredients, '[]'::jsonb)                                as ingredients,
     coalesce(round(a.aciertos * 100.0 / nullif(a.total, 0)), 0)::integer as match_pct,
     (coalesce(round(a.aciertos * 100.0 / nullif(a.total, 0)), 0)
@@ -407,3 +416,28 @@ create policy "shopping_list_items_all_own" on public.shopping_list_items
       where l.id = list_id and l.user_id = auth.uid()
     )
   );
+
+-- ─── FEEDBACKS ───────────────────────────────────────────────────────────────
+-- Sprint Auth/Feedback — feedback in-app (reemplaza el mailto del Perfil).
+-- Solo INSERT desde el cliente; se lee desde el dashboard con service_role.
+create table if not exists public.feedbacks (
+  id           uuid primary key default gen_random_uuid(),
+  -- nullable: conservar el feedback si la cuenta se elimina (on delete set null)
+  user_id      uuid references auth.users (id) on delete set null,
+  email        text,
+  rating       integer not null check (rating between 1 and 5),
+  message      text not null check (char_length(message) between 3 and 4000),
+  app_version  text,
+  platform     text,
+  created_at   timestamptz not null default now()
+);
+
+-- Idempotencia para BDs que corrieron la versión previa sin rating
+alter table public.feedbacks add column if not exists
+  rating integer not null default 5 check (rating between 1 and 5);
+
+alter table public.feedbacks enable row level security;
+
+drop policy if exists "feedbacks_insert_own" on public.feedbacks;
+create policy "feedbacks_insert_own" on public.feedbacks
+  for insert with check (auth.uid() = user_id);

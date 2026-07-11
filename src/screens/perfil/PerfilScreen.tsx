@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, Switch, StatusBar, Linking,
+  TouchableOpacity, Alert, Switch, StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +14,9 @@ import { useFavoritosStore } from '../../store/favoritosStore';
 import { getRecetas } from '../../services/recipeService';
 import { Receta } from '../../types/receta';
 import { TerminosModal } from '../../components/legal/TerminosModal';
+import { FeedbackModal } from '../../components/perfil/FeedbackModal';
+import { CORREO_SOPORTE } from '../../services/feedbackService';
+import { ESPACIO_TAB_BAR } from '../../constants/layout';
 
 const RESTRICCIONES = [
   { id: 'vegetariano', label: 'Vegetariano' },
@@ -32,6 +35,7 @@ export function PerfilScreen() {
   const [guardando, setGuardando] = useState(false);
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [modalTerminos, setModalTerminos] = useState(false);
+  const [modalFeedback, setModalFeedback] = useState(false);
 
   useEffect(() => {
     getRecetas().then(setRecetas).catch(() => {});
@@ -179,14 +183,7 @@ export function PerfilScreen() {
         </View>
 
         {/* Feedback */}
-        <TouchableOpacity
-          style={s.btnFeedback}
-          onPress={() => Linking.openURL(
-            'mailto:gunsdghost@gmail.com' +
-            '?subject=' + encodeURIComponent('Feedback Qhay') +
-            '&body=' + encodeURIComponent('Hola! Quiero compartir mi experiencia con Qhay:\n\n')
-          )}
-        >
+        <TouchableOpacity style={s.btnFeedback} onPress={() => setModalFeedback(true)}>
           <Text style={s.btnFeedbackTexto}>💬 Enviar Feedback</Text>
         </TouchableOpacity>
 
@@ -198,7 +195,10 @@ export function PerfilScreen() {
           ])}>
             <Text style={s.btnSalirTexto}>Cerrar sesión</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => Alert.alert('Eliminar cuenta', 'Escríbenos a soporte para eliminar tu cuenta.')}>
+          <TouchableOpacity onPress={() => Alert.alert(
+            'Eliminar cuenta',
+            `Escríbenos a ${CORREO_SOPORTE} para eliminar tu cuenta.`
+          )}>
             <Text style={s.btnEliminar}>Eliminar cuenta</Text>
           </TouchableOpacity>
         </View>
@@ -207,6 +207,7 @@ export function PerfilScreen() {
       </ScrollView>
 
       <TerminosModal visible={modalTerminos} onCerrar={() => setModalTerminos(false)} />
+      <FeedbackModal visible={modalFeedback} onCerrar={() => setModalFeedback(false)} />
     </View>
   );
 }
@@ -215,7 +216,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: C.bg },
   header: { paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16, backgroundColor: C.surface },
   titulo: { fontSize: 24, fontWeight: '700', color: C.text },
-  scroll: { padding: 16, gap: 12, paddingBottom: 40 },
+  scroll: { padding: 16, gap: 12, paddingBottom: ESPACIO_TAB_BAR },
   userCard: {
     backgroundColor: C.surface,
     borderRadius: 20,

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Button } from '../../components/common/Button';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../hooks/useAuth';
 import { completarOnboarding } from '../../services/profileService';
 import type { Utensilio } from '../../types/firestore';
 
@@ -63,7 +63,9 @@ export function OnboardingScreen() {
   const [restricciones, setRestricciones] = useState<string[]>([]);
   const [tiempoCocina, setTiempoCocina] = useState(45);
   const [guardando, setGuardando] = useState(false);
-  const { usuario, actualizarUsuario: actualizarStore } = useAuthStore();
+  // actualizarUsuario del hook persiste store + caché AsyncStorage juntos:
+  // clave para que el navigator no rebote de vuelta al onboarding (bug loop).
+  const { usuario, actualizarUsuario: actualizarStore } = useAuth();
 
   const toggleEn = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>) => (id: T) =>
     setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

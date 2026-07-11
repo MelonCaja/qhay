@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import { ESPACIO_TAB_BAR } from '../../constants/layout';
 import {
   createShoppingList, getShoppingLists, addItemToList,
   toggleItemCheck, removeItemFromList, clearCheckedItems,
@@ -13,7 +14,8 @@ import type { ShoppingList, ShoppingItem } from '../../types/firestore';
 
 const NOMBRE_LISTA_DEFAULT = 'Lista del súper';
 
-export function ListaUniversalScreen() {
+// `embebida`: se renderiza dentro de ListasScreen (sin StatusBar ni header propios)
+export function ListaUniversalScreen({ embebida = false }: { embebida?: boolean }) {
   const C = useColors();
   const s = makeStyles(C);
   const { usuario } = useAuthStore();
@@ -107,10 +109,12 @@ export function ListaUniversalScreen() {
 
   return (
     <View style={s.contenedor}>
-      <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      {!embebida && (
+        <StatusBar barStyle={C.bg === '#0D0F12' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      )}
 
-      <View style={s.header}>
-        <Text style={s.titulo}>Lista del Súper</Text>
+      <View style={[s.header, embebida && s.headerEmbebido]}>
+        {!embebida && <Text style={s.titulo}>Lista del Súper</Text>}
         <Text style={s.subtitulo}>Sin cadenas: compra donde te convenga</Text>
       </View>
 
@@ -182,6 +186,7 @@ export function ListaUniversalScreen() {
 const makeStyles = (C: ColorPalette) => StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: C.bg },
   header: { paddingHorizontal: 20, paddingTop: 56, paddingBottom: 14 },
+  headerEmbebido: { paddingTop: 12, paddingBottom: 10, alignItems: 'center' },
   titulo: { fontSize: 26, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subtitulo: { fontSize: 13, color: C.textMuted, marginTop: 3 },
 
@@ -208,7 +213,7 @@ const makeStyles = (C: ColorPalette) => StyleSheet.create({
   btnAgregarOff: { opacity: 0.35 },
   btnAgregarTexto: { fontSize: 26, fontWeight: '400', color: C.onPrimary, lineHeight: 30 },
 
-  listaScroll: { paddingHorizontal: 16, paddingBottom: 32, gap: 8 },
+  listaScroll: { paddingHorizontal: 16, paddingBottom: ESPACIO_TAB_BAR, gap: 8 },
 
   // Stats bento
   statsFila: { flexDirection: 'row', gap: 8, marginBottom: 12 },

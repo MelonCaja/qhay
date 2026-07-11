@@ -2,7 +2,7 @@
   "expo": {
     "name": "Qhay",
     "slug": "qhay",
-    "scheme": "qhay",
+    "scheme": ["qhay", "cl.qhay.app"],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +20,8 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "qhay"
+              "qhay",
+              "cl.qhay.app"
             ]
           }
         ]
@@ -34,6 +35,9 @@
           "data": [
             {
               "scheme": "qhay"
+            },
+            {
+              "scheme": "cl.qhay.app"
             }
           ],
           "category": [
@@ -66,7 +70,8 @@
           "color": "#2E7D32"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font"
     ],
     "extra": {
       "eas": {
