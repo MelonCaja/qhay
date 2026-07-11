@@ -294,11 +294,19 @@ const pasos = [
 
   /* ── Modal de contacto ── */
   .modal {
+    /* El reset global `* { margin: 0 }` anula el `margin: auto` con que el
+       UA centra los <dialog> — restaurarlo aquí es lo que lo centra */
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
     border: none;
     background: transparent;
     padding: 16px;
     max-width: 100vw;
-    max-height: 100vh;
+    max-height: 100dvh;
+    overflow-y: auto;
   }
   .modal::backdrop {
     background: rgba(0, 0, 0, 0.6);
