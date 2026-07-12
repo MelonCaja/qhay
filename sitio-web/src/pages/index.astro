@@ -45,7 +45,7 @@ const pasos = [
       barata <em>tu</em> lista completa — no producto por producto.
     </p>
     <div class="hero-cta">
-      <button type="button" class="btn-primario" data-abrir-contacto>Quiero probarla</button>
+      <button type="button" class="btn-primario" data-abrir-contacto>Postular a la Beta Cerrada</button>
       <a class="btn-secundario" href="#como-funciona">Cómo funciona</a>
     </div>
   </header>
@@ -80,8 +80,8 @@ const pasos = [
   <!-- CTA final -->
   <section class="seccion cta-final">
     <h2>Deja de adivinar dónde comprar.</h2>
-    <p>Qhay hace la pega de comparar. Tú solo decides.</p>
-    <button type="button" class="btn-primario" data-abrir-contacto>Escríbenos</button>
+    <p>Qhay hace la pega de comparar. Tú solo decides. Cupos limitados en la beta.</p>
+    <button type="button" class="btn-primario" data-abrir-contacto>Postular a la beta</button>
   </section>
 
   <!-- Modal de contacto -->
@@ -90,30 +90,43 @@ const pasos = [
       <button type="button" class="modal-cerrar" data-cerrar-contacto aria-label="Cerrar">✕</button>
 
       <div id="contacto-cuerpo">
-        <h2 id="contacto-titulo">Escríbenos</h2>
-        <p class="modal-sub">Cuéntanos qué necesitas y te respondemos a la brevedad.</p>
+        <h2 id="contacto-titulo">Postula a la Beta Cerrada</h2>
+        <p class="modal-sub">
+          Estamos abriendo Qhay en lotes de prueba pequeños para cuidar la calidad,
+          así que los cupos son limitados. Déjanos tus datos y te avisamos cuando
+          se libere tu acceso.
+        </p>
 
         <form id="contacto-form">
+          <input type="hidden" name="_subject" value="Nueva postulación a la Beta Cerrada de Qhay" />
           <label class="campo">
             <span>Correo electrónico</span>
             <input type="email" name="email" required autocomplete="email" placeholder="tu@correo.cl" />
           </label>
           <label class="campo">
-            <span>Mensaje</span>
-            <textarea name="mensaje" required minlength="10" rows="5" placeholder="Hola, quiero probar Qhay…"></textarea>
+            <span>Sistema operativo de tu celular</span>
+            <select name="sistema_operativo" required>
+              <option value="" disabled selected>Elige una opción…</option>
+              <option value="Android (Google Play)">Android (Google Play)</option>
+              <option value="iOS (iPhone)">iOS (iPhone)</option>
+            </select>
+          </label>
+          <label class="campo">
+            <span>Mensaje (opcional)</span>
+            <textarea name="mensaje" rows="4" placeholder="Cuéntanos por qué quieres probar Qhay…"></textarea>
           </label>
           <p class="form-error" id="contacto-error" hidden>
-            No pudimos enviar tu mensaje. Intenta de nuevo en unos minutos o
+            No pudimos enviar tu postulación. Intenta de nuevo en unos minutos o
             escríbenos directo a contacto@qhay.cl.
           </p>
-          <button type="submit" class="btn-primario btn-enviar" id="contacto-enviar">Enviar mensaje</button>
+          <button type="submit" class="btn-primario btn-enviar" id="contacto-enviar">Postular a la beta</button>
         </form>
       </div>
 
       <div class="form-exito" id="contacto-exito" hidden>
         <span class="exito-emoji" aria-hidden="true">🎉</span>
-        <h2>¡Mensaje enviado con éxito!</h2>
-        <p>Nos pondremos en contacto contigo pronto.</p>
+        <h2>¡Postulación recibida!</h2>
+        <p>Quedaste en la lista de espera. Te escribiremos a tu correo apenas se libere un cupo en tu lote de prueba.</p>
         <button type="button" class="btn-secundario" data-cerrar-contacto>Cerrar</button>
       </div>
     </div>
@@ -134,7 +147,7 @@ const pasos = [
   const resetear = () => {
     form.reset();
     btnEnviar.disabled = false;
-    btnEnviar.textContent = 'Enviar mensaje';
+    btnEnviar.textContent = 'Postular a la beta';
     errorMsg.hidden = true;
     exito.hidden = true;
     cuerpo.hidden = false;
@@ -177,7 +190,7 @@ const pasos = [
     } catch {
       errorMsg.hidden = false;
       btnEnviar.disabled = false;
-      btnEnviar.textContent = 'Enviar mensaje';
+      btnEnviar.textContent = 'Postular a la beta';
     }
   });
 </script>
@@ -343,7 +356,8 @@ const pasos = [
   .campo { display: grid; gap: 6px; }
   .campo span { font-size: 13px; font-weight: 600; color: var(--muted); }
   .campo input,
-  .campo textarea {
+  .campo textarea,
+  .campo select {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -354,8 +368,19 @@ const pasos = [
     resize: vertical;
     transition: border-color 0.15s;
   }
+  .campo select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 38px;
+  }
+  .campo select:invalid { color: var(--muted); }
+  .campo select option { color: var(--text); background: var(--bg); }
   .campo input:focus,
-  .campo textarea:focus {
+  .campo textarea:focus,
+  .campo select:focus {
     outline: none;
     border-color: var(--primary);
   }
