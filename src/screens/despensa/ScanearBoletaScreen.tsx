@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, StatusBar, Image, TextInput,
+  ScrollView, Alert, ActivityIndicator, StatusBar, Image, TextInput, Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -44,6 +44,23 @@ export function ScanearBoletaScreen() {
 
   // ── Modo foto: abre la cámara nativa con ImagePicker ─────────────────────
   const abrirCamara = useCallback(async () => {
+    // En web no hay cámara nativa de app: ImagePicker.launchCameraAsync no
+    // está soportado. launchImageLibraryAsync sí lo está — en el navegador
+    // lo implementa como <input type="file" accept="image/*">, que en
+    // móvil ofrece igual la opción de tomar una foto nueva.
+    if (Platform.OS === 'web') {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        base64: true,
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]?.base64) {
+        setFoto({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
+        setPaso('preview');
+      }
+      return;
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara.');
@@ -223,7 +240,7 @@ export function ScanearBoletaScreen() {
 
         <View style={s.previewFooter}>
           <TouchableOpacity style={s.btnSec} onPress={abrirCamara}>
-            <Text style={s.btnSecTexto}>Retomar foto</Text>
+            <Text style={s.btnSecTexto}>{Platform.OS === 'web' ? 'Elegir otra foto' : 'Retomar foto'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.btnPrim} onPress={analizarFoto}>
             <Text style={s.btnPrimTexto}>Analizar boleta</Text>
@@ -353,9 +370,13 @@ export function ScanearBoletaScreen() {
         /* ── Modo foto: botón grande ────────────────────────────────── */
         <View style={[s.flex, s.centrado, { backgroundColor: '#09090B' }]}>
           <Text style={{ fontSize: 64, marginBottom: 16 }}>📄</Text>
-          <Text style={s.fotoTitulo}>Fotografía tu boleta</Text>
+          <Text style={s.fotoTitulo}>
+            {Platform.OS === 'web' ? 'Sube una foto de tu boleta' : 'Fotografía tu boleta'}
+          </Text>
           <Text style={s.fotoSub}>
-            Captura toda la boleta, bien iluminada.{'\n'}La IA detectará todos los productos.
+            {Platform.OS === 'web'
+              ? 'Elige una foto nítida y bien iluminada.\nLa IA detectará todos los productos.'
+              : 'Captura toda la boleta, bien iluminada.\nLa IA detectará todos los productos.'}
           </Text>
           {usuario && usuario.plan !== 'premium' && (
             <Text style={s.fotoLimite}>
@@ -363,7 +384,7 @@ export function ScanearBoletaScreen() {
             </Text>
           )}
           <TouchableOpacity style={s.btnTomarFoto} onPress={abrirCamara}>
-            <Text style={s.btnTomarFotoTexto}>Abrir cámara</Text>
+            <Text style={s.btnTomarFotoTexto}>{Platform.OS === 'web' ? 'Subir foto' : 'Abrir cámara'}</Text>
           </TouchableOpacity>
         </View>
       )}
