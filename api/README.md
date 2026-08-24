@@ -27,9 +27,11 @@ npx vercel deploy --prod
 Una vez desplegado, copia la URL (ej: `https://qhay-api.vercel.app`) y pégala en:
 
 ```typescript
-// src/services/scraping.ts  línea ~10
-const SCRAPING_API_URL = 'https://qhay-api.vercel.app';
+// src/config/api.ts
+export const API_BASE_URL = 'https://qhay-api.vercel.app';
 ```
+
+Configura además `OPENAI_API_KEY` como variable de entorno del proyecto en Vercel — la usan `POST /analizar-boleta` y `POST /asistente` server-side. Sin ella, ambos endpoints responden `503`.
 
 ## Deploy en Railway
 

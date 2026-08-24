@@ -1,4 +1,4 @@
-import { Config } from '../constants/config';
+import { API_BASE_URL } from '../config/api';
 import { Ingrediente } from '../types/ingrediente';
 import { Receta } from '../types/receta';
 
@@ -9,44 +9,23 @@ interface ContextoAsistente {
   restricciones: string[];
 }
 
-// Consultar al asistente de cocina IA
+// Consultar al asistente de cocina IA — vía api/ (POST /asistente), que
+// llama a OpenAI server-side. No exponer nunca EXPO_PUBLIC_OPENAI_API_KEY
+// aquí: en un bundle web quedaría visible desde las devtools del navegador.
 export async function consultarAsistente(
   pregunta: string,
   contexto: ContextoAsistente
 ): Promise<string> {
-  const ingredientesTexto = contexto.despensa
-    .map((i) => `${i.nombre} (${i.cantidad} ${i.unidad})`)
-    .join(', ');
-
-  const sistemaMensaje = `Eres el asistente de cocina de Qhay. Responde en español de forma concisa y amigable.
-Ayudas a cocinar con lo que el usuario tiene en su despensa.
-${contexto.restricciones.length > 0 ? `Restricciones alimentarias del usuario: ${contexto.restricciones.join(', ')}.` : ''}`;
-
-  const usuarioMensaje = `Despensa actual: ${ingredientesTexto}
-${contexto.recetaActual ? `Receta que estoy haciendo: ${contexto.recetaActual.nombre}, paso ${contexto.pasoActual ?? 1}` : ''}
-Pregunta: ${pregunta}`;
-
-  const respuesta = await fetch('https://api.openai.com/v1/chat/completions', {
+  const respuesta = await fetch(`${API_BASE_URL}/asistente`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${Config.openaiApiKey}`,
-    },
-    body: JSON.stringify({
-      model: Config.openaiModel,
-      messages: [
-        { role: 'system', content: sistemaMensaje },
-        { role: 'user', content: usuarioMensaje },
-      ],
-      max_tokens: 300,
-      temperature: 0.7,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pregunta, contexto }),
   });
 
   if (!respuesta.ok) {
-    throw new Error(`Error OpenAI: ${respuesta.status}`);
+    throw new Error(`Error asistente: ${respuesta.status}`);
   }
 
   const data = await respuesta.json();
-  return data.choices[0]?.message?.content ?? 'No pude responder en este momento.';
+  return data.respuesta ?? 'No pude responder en este momento.';
 }

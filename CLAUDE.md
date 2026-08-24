@@ -63,9 +63,19 @@ cd sitio-web && npm run dev
 cd sitio-web && npm run check  # astro check (tipos + diagnósticos Astro)
 ```
 
+## Fase 1 — Web First
+
+Decisión de estrategia (2026-08): antes de invertir en builds nativas de app store, priorizamos validar el producto en **web** (Expo Web sobre `react-native-web`) para conseguir feedback de usuarios reales más rápido. Implicaciones concretas:
+
+- El criterio de "listo" para una pantalla nueva en este período es que funcione bien en navegador, no solo que compile para iOS/Android
+- Varios módulos nativos que la app usa hoy no tienen equivalente directo en web y necesitan fallback explícito: `react-native-maps` (mapa de supermercados), `expo-camera` (escaneo de boletas — en web se reemplaza por `<input type="file" capture>`), `react-native-webview`, `expo-notifications`. Ver `.claude/agents/web-platform-specialist.md` para el detalle por módulo
+- No existe todavía pipeline de deploy para la Expo Web app (sin script de export estático, sin destino de hosting configurado) ni CI/CD en el repo (`.github/workflows/` no existe) — ambos son trabajo pendiente de esta fase, no algo ya resuelto que solo haya que activar
+- **Bloqueante de seguridad a resolver antes de un lanzamiento web público**: `src/services/openai.ts` llama a la API de OpenAI directamente desde el cliente usando `EXPO_PUBLIC_OPENAI_API_KEY` (ver `src/constants/config.ts`). En un bundle web esa key es trivialmente visible desde las devtools del navegador. Antes del lanzamiento, esa llamada debería moverse detrás de `api/` (que ya maneja `OPENAI_API_KEY` server-side para `/analizar-boleta`)
+- Para este trabajo usa `.claude/agents/web-platform-specialist.md` (UI/UX web, responsividad, adaptación de módulos nativos) y `.claude/agents/devops-specialist.md` (pipeline de deploy, CI/CD, variables de entorno)
+
 ## Reglas generales
 
 - Cambios en `api/`, `sitio-web/` y la app móvil son independientes: no mezclar sus dependencias ni asumir que un `npm install` en la raíz instala las otras
 - Antes de tocar `supabase/schema.sql`, revisar qué tablas/columnas ya existen — muchas features (planes, BAES, límites de escaneo) ya tienen columnas dedicadas en `profiles`
 - Los scrapers de supermercados dependen de estructura HTML/API externa que puede cambiar sin aviso; al modificar un scraper, preferir tocar `vtex.js` si el cambio aplica a todos los supermercados VTEX en vez de duplicar lógica en cada adaptador
-- Usa los subagentes especializados en `.claude/agents/` (`frontend-specialist`, `backend-specialist`, `data-engineer`, `qa-reviewer`) para tareas que caigan claramente en su dominio
+- Usa los subagentes especializados en `.claude/agents/` (`frontend-specialist`, `backend-specialist`, `data-engineer`, `qa-reviewer`, `web-platform-specialist`, `devops-specialist`) para tareas que caigan claramente en su dominio

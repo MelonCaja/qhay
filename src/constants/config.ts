@@ -1,9 +1,5 @@
 // Configuración general de la app
 export const Config = {
-  // OpenAI
-  openaiModel: 'gpt-4o-mini',
-  openaiApiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '',
-
   // Umbrales de vencimiento en días
   vencimientoOk: 7,
   vencimientoProximo: 3,

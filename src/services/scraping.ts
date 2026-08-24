@@ -1,6 +1,6 @@
 import { Producto } from '../types/producto';
+import { API_BASE_URL } from '../config/api';
 
-const SCRAPING_API_URL = 'https://qhay.vercel.app';
 // 25 s — la API scraping 6 supermercados en paralelo puede tardar en cold start
 const TIMEOUT_MS = 25_000;
 
@@ -32,7 +32,7 @@ function mapearProducto(p: any): Producto {
  * Logs en cada paso del pipeline para debug en consola de Expo Go.
  */
 export async function buscarProductos(query: string): Promise<ResultadoBusqueda> {
-  const url = `${SCRAPING_API_URL}/buscar?q=${encodeURIComponent(query)}`;
+  const url = `${API_BASE_URL}/buscar?q=${encodeURIComponent(query)}`;
   const controller = new AbortController();
   const timer = setTimeout(() => {
     console.warn('[scraping] TIMEOUT alcanzado (25s), abortando petición:', url);

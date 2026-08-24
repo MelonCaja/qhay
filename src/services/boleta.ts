@@ -1,4 +1,4 @@
-import { Config } from '../constants/config';
+import { API_BASE_URL } from '../config/api';
 
 export type CategoriaId =
   | 'frutas_verduras'
@@ -24,76 +24,24 @@ export interface ItemBoleta {
 }
 
 /**
- * Analiza una foto de boleta con GPT-4o Vision usando la key del .env.
+ * Analiza una foto de boleta con GPT-4o Vision vía api/ (POST /analizar-boleta),
+ * que llama a OpenAI server-side con OPENAI_API_KEY. No llamar a OpenAI directo
+ * desde aquí: en un bundle web la key quedaría expuesta en las devtools.
  */
 export async function escanearBoleta(base64Image: string): Promise<ItemBoleta[]> {
-  if (!Config.openaiApiKey) throw new Error('API key no configurada. Agrega EXPO_PUBLIC_OPENAI_API_KEY en el .env');
-
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch(`${API_BASE_URL}/analizar-boleta`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${Config.openaiApiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image_url',
-            image_url: { url: `data:image/jpeg;base64,${base64Image}`, detail: 'high' },
-          },
-          {
-            type: 'text',
-            text: `Esta es una boleta de supermercado chileno. Extrae TODOS los productos.
-Responde SOLO con JSON válido, sin texto adicional:
-{"items":[{"nombre":"Leche Colun 1L","cantidad":2,"unidad":"unidad","precioUnitario":1290,"categoria":"lacteos"}]}
-
-Reglas:
-- nombre: nombre limpio (sin códigos de barra)
-- cantidad: unidades compradas (entero)
-- unidad: "unidad","kg","g","L","ml","paquete" o "lata"
-- precioUnitario: precio en CLP (entero)
-- Solo alimentos y productos del hogar
-- Omite filas con precio 0 o ilegibles
-- categoria: asigna UNA de estas 13 categorías exactas según el tipo de producto:
-  "frutas_verduras" → frutas, verduras, vegetales frescos
-  "lacteos" → leche, yogur, mantequilla, huevos, helados, congelados
-  "quesos_fiambres" → quesos, jamón, cecinas, fiambres
-  "despensa" → arroz, pasta, harina, aceite, conservas, salsas, condimentos, cereales
-  "carnes_pescados" → carne, pollo, cerdo, mariscos, pescado
-  "panaderia" → pan, marraqueta, hallulla, pasteles, tortas, empanadas
-  "bebidas" → agua, jugos, bebidas, cervezas, vinos, licores
-  "snacks" → chocolates, galletas, papas fritas, dulces, snacks
-  "limpieza" → detergente, cloro, limpiador, esponja, papel higiénico, servilletas
-  "cuidado_personal" → shampoo, jabón, pasta de dientes, desodorante, pañales, cosméticos
-  "mascotas" → alimento para mascotas, accesorios para animales
-  "hogar" → utensilios, electrodomésticos pequeños, juguetes, artículos de librería
-  "farmacia" → medicamentos, vitaminas, suplementos, artículos de salud`,
-          },
-        ],
-      }],
-      max_tokens: 2000,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imagen: base64Image }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message ?? `Error OpenAI: ${res.status}`);
+    throw new Error(err.error ?? `Error al analizar boleta: ${res.status}`);
   }
 
   const data = await res.json();
-  const texto: string = data.choices?.[0]?.message?.content ?? '{"items":[]}';
-  const match = texto.match(/\{[\s\S]*\}/);
-  if (!match) return [];
-
-  try {
-    const parsed = JSON.parse(match[0]);
-    return Array.isArray(parsed.items) ? parsed.items : [];
-  } catch {
-    return [];
-  }
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 /**

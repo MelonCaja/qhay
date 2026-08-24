@@ -5,6 +5,7 @@
  *   GET /buscar?q=leche        → busca en todos los supermercados y combina
  *   GET /health                → status del servidor
  *   POST /analizar-boleta      → OCR con GPT-4o Vision
+ *   POST /asistente            → Asistente de cocina con GPT-4o-mini
  */
 
 const express = require('express');
@@ -188,7 +189,7 @@ app.post('/analizar-boleta', async (req, res) => {
               type: 'text',
               text: `Esta es una boleta de supermercado chileno. Extrae TODOS los productos.
 Responde SOLO con JSON válido, sin texto adicional:
-{"items":[{"nombre":"Leche Colun 1L","cantidad":2,"unidad":"unidad","precioUnitario":1290}]}
+{"items":[{"nombre":"Leche Colun 1L","cantidad":2,"unidad":"unidad","precioUnitario":1290,"categoria":"lacteos"}]}
 
 Reglas:
 - nombre: nombre limpio (sin códigos de barra)
@@ -196,7 +197,21 @@ Reglas:
 - unidad: "unidad","kg","g","L","ml","paquete" o "lata"
 - precioUnitario: precio en CLP (entero)
 - Solo alimentos y productos del hogar
-- Omite filas con precio 0 o ilegibles`,
+- Omite filas con precio 0 o ilegibles
+- categoria: asigna UNA de estas 13 categorías exactas según el tipo de producto:
+  "frutas_verduras" → frutas, verduras, vegetales frescos
+  "lacteos" → leche, yogur, mantequilla, huevos, helados, congelados
+  "quesos_fiambres" → quesos, jamón, cecinas, fiambres
+  "despensa" → arroz, pasta, harina, aceite, conservas, salsas, condimentos, cereales
+  "carnes_pescados" → carne, pollo, cerdo, mariscos, pescado
+  "panaderia" → pan, marraqueta, hallulla, pasteles, tortas, empanadas
+  "bebidas" → agua, jugos, bebidas, cervezas, vinos, licores
+  "snacks" → chocolates, galletas, papas fritas, dulces, snacks
+  "limpieza" → detergente, cloro, limpiador, esponja, papel higiénico, servilletas
+  "cuidado_personal" → shampoo, jabón, pasta de dientes, desodorante, pañales, cosméticos
+  "mascotas" → alimento para mascotas, accesorios para animales
+  "hogar" → utensilios, electrodomésticos pequeños, juguetes, artículos de librería
+  "farmacia" → medicamentos, vitaminas, suplementos, artículos de salud`,
             },
           ],
         }],
@@ -223,11 +238,81 @@ Reglas:
   }
 });
 
+// Trunca strings de entrada del asistente para no dejar el costo de la
+// llamada a OpenAI a merced del tamaño del payload que mande el cliente.
+function limitarTexto(str, max) {
+  return String(str ?? '').trim().slice(0, max);
+}
+
+// Endpoint del asistente de cocina IA (antes se llamaba a OpenAI directo
+// desde el cliente con EXPO_PUBLIC_OPENAI_API_KEY — inseguro en web, donde
+// el bundle es inspeccionable. Ahora la key vive solo server-side.)
+/**
+ * POST /asistente
+ * Body: { pregunta: string, contexto: { despensa, recetaActual?, pasoActual?, restricciones } }
+ * Retorna: { respuesta: string }
+ */
+app.post('/asistente', async (req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Asistente no configurado en el servidor' });
+
+  const pregunta = limitarTexto(req.body?.pregunta, 500);
+  if (!pregunta) return res.status(400).json({ error: 'Falta el campo pregunta' });
+
+  const contexto = req.body?.contexto ?? {};
+  const despensa = Array.isArray(contexto.despensa) ? contexto.despensa.slice(0, 50) : [];
+  const restricciones = Array.isArray(contexto.restricciones) ? contexto.restricciones.slice(0, 20) : [];
+  const recetaActual = contexto.recetaActual;
+  const pasoActual = contexto.pasoActual;
+
+  const ingredientesTexto = despensa
+    .map((i) => `${limitarTexto(i?.nombre, 60)} (${limitarTexto(i?.cantidad, 10)} ${limitarTexto(i?.unidad, 20)})`)
+    .join(', ');
+
+  const sistemaMensaje = `Eres el asistente de cocina de Qhay. Responde en español de forma concisa y amigable.
+Ayudas a cocinar con lo que el usuario tiene en su despensa.
+${restricciones.length > 0 ? `Restricciones alimentarias del usuario: ${restricciones.map((r) => limitarTexto(r, 40)).join(', ')}.` : ''}`;
+
+  const usuarioMensaje = `Despensa actual: ${ingredientesTexto}
+${recetaActual?.nombre ? `Receta que estoy haciendo: ${limitarTexto(recetaActual.nombre, 100)}, paso ${pasoActual ?? 1}` : ''}
+Pregunta: ${pregunta}`;
+
+  try {
+    const respuesta = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: sistemaMensaje },
+          { role: 'user', content: usuarioMensaje },
+        ],
+        max_tokens: 300,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!respuesta.ok) {
+      const err = await respuesta.text();
+      console.error('[asistente] OpenAI error:', err);
+      return res.status(502).json({ error: `Error OpenAI: ${respuesta.status}` });
+    }
+
+    const data = await respuesta.json();
+    const texto = data.choices?.[0]?.message?.content ?? 'No pude responder en este momento.';
+    return res.json({ respuesta: texto });
+  } catch (err) {
+    console.error('[asistente] Error:', err);
+    return res.status(500).json({ error: 'Error interno al consultar el asistente' });
+  }
+});
+
 app.listen(PORT, () => {
   if (process.env.NODE_ENV !== 'production') {
     console.log(`🛒 Qhay API escuchando en http://localhost:${PORT}`);
     console.log(`  GET  /buscar?q=leche`);
     console.log(`  POST /analizar-boleta`);
+    console.log(`  POST /asistente`);
     console.log(`  GET  /health`);
   }
 });

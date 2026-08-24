@@ -114,8 +114,9 @@ EXPO_PUBLIC_FIREBASE_PROJECT_ID=tu_proyecto
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
 EXPO_PUBLIC_FIREBASE_APP_ID=tu_app_id
-EXPO_PUBLIC_OPENAI_API_KEY=sk-...
 ```
+
+La key de OpenAI **no** va en el `.env` de la app: el asistente de cocina y el OCR de boletas llaman a `api/` (ver sección siguiente), que la usa server-side vía `OPENAI_API_KEY` en su propio entorno (Vercel). Exponerla como `EXPO_PUBLIC_*` la dejaría visible en el bundle web.
 
 ### 4. Iniciar la app
 
