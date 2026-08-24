@@ -41,5 +41,7 @@ yarn-error.*
 /ios
 /android
 
-# Claude Code
-.claude/
+# Claude Code (config local; agentes y directrices sí se versionan)
+.claude/*
+!.claude/agents/
+!.claude/agents/**
