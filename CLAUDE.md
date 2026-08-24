@@ -1,6 +1,6 @@
 # Qhay — Guía del repositorio
 
-Qhay es una app móvil para Chile (React Native + Expo) que gestiona despensa, sugiere recetas y compara precios de supermercados (Jumbo, Líder, Santa Isabel, Unimarc, Alvi, M10). El repo es un monorepo simple con tres proyectos independientes que **no comparten `node_modules` ni build**:
+Qhay es una app móvil para Chile (React Native + Expo) que gestiona despensa, sugiere recetas y compara precios de supermercados (Jumbo, Santa Isabel, Unimarc activos; Alvi y M10 deshabilitados temporalmente; Líder excluido por decisión de producto — ver "Estado de los scrapers" más abajo). El repo es un monorepo simple con tres proyectos independientes que **no comparten `node_modules` ni build**:
 
 | Carpeta | Qué es | Stack |
 |---|---|---|
@@ -28,10 +28,22 @@ Nota: el `README.md` menciona Firebase en varias secciones; eso está desactuali
 ## Backend de scraping (`api/`)
 
 - `src/index.js` — servidor Express único: caché en memoria (TTL 15 min), normalización de nombres de producto (`normalizarClave`) y combinación de resultados de todos los scrapers
-- `src/scrapers/vtex.js` — helper compartido para los supermercados que corren sobre la plataforma VTEX (Jumbo, Santa Isabel, Unimarc, Alvi, M10); los archivos individuales (`jumbo.js`, `santaisabel.js`, etc.) son adaptadores delgados sobre `vtex.js`
-- `src/scrapers/lider.js` — scraper independiente (Líder/Walmart no usa VTEX)
-- Endpoints: `GET /buscar?q=`, `GET /health`, `POST /analizar-boleta` (OCR con GPT-4o Vision)
+- `src/scrapers/vtex.js` — helper compartido para los supermercados que **sí** corren sobre VTEX (Jumbo, Santa Isabel). No asumas que un scraper nuevo usa VTEX solo porque el resto del holding lo hizo históricamente — verifícalo (ver estado por supermercado abajo)
+- Endpoints: `GET /buscar?q=`, `GET /health`, `POST /analizar-boleta` (OCR con GPT-4o Vision), `POST /asistente` (asistente de cocina IA)
 - JavaScript plano (CommonJS), sin TypeScript ni build step — se despliega tal cual a Vercel
+
+### Estado de los scrapers por supermercado (auditoría 2026-08-24)
+
+| Supermercado | Estado | Detalle |
+|---|---|---|
+| Jumbo | ✅ Activo | VTEX (`vtex.js`, cuenta `jumbo`) |
+| Santa Isabel | ✅ Activo | VTEX (`vtex.js`, cuenta `santaisabel`) |
+| Unimarc | ✅ Activo | **No usa VTEX** — la cuenta VTEX `unimarc` está obsolescente (404 real del router). Reconstruido contra el BFF propio de SMU: `POST https://bff-unimarc-ecommerce.unimarc.cl/catalog/product/search` (ver `src/scrapers/unimarc.js`). Descubierto por inspección de red con Playwright; funciona con `node-fetch` simple (sin navegador) — un intento con `curl` fue bloqueado (403 Akamai) con headers casi idénticos, la diferencia está en el fingerprint TLS de la herramienta, no en los headers. Los headers `session`/`anonymous` son tokens client-side sin validación server-side aparente
+| Alvi | ⛔ Deshabilitado | Misma cuenta VTEX obsoleta que Unimarc + mismo borde Akamai (403 total, incluso `robots.txt`). Candidato a reactivar con el mismo patrón que Unimarc una vez confirmado su BFF — no investigado todavía |
+| Mayorista 10 (M10) | ⛔ Deshabilitado | Igual que Alvi — mismo borde Akamai que Unimarc, no investigado todavía |
+| Líder | ⛔ **Excluido del comparador (decisión de producto, no técnica temporal)** | Walmart Chile usa **PerimeterX/HUMAN Security**, no Akamai — challenge conductual ("press and hold") activo desde la primera petición, incluso con navegador headless completo e IP residencial chilena real. No es un problema de reputación de IP como Unimarc: es fingerprinting de comportamiento. Evadirlo requeriría simular interacción humana real o un servicio de terceros con proxies residenciales rotativos (tipo Bright Data/Zyte) — se decidió **no** incurrir en ese costo/riesgo por ahora. Alternativas a evaluar si se retoma: API de la app móvil de Walmart Chile, o un dataset/proveedor de precios de terceros. `src/scrapers/lider.js` queda deshabilitado con esta documentación in situ |
+
+Todos los scrapers deshabilitados fallan rápido con un error descriptivo (no hacen la request de red) para no colgar `/buscar` esperando un timeout de un endpoint que se sabe muerto.
 
 ## Base de datos (`supabase/`)
 
@@ -70,7 +82,7 @@ Decisión de estrategia (2026-08): antes de invertir en builds nativas de app st
 - El criterio de "listo" para una pantalla nueva en este período es que funcione bien en navegador, no solo que compile para iOS/Android
 - Varios módulos nativos que la app usa hoy no tienen equivalente directo en web y necesitan fallback explícito: `react-native-maps` (mapa de supermercados), `expo-camera` (escaneo de boletas — en web se reemplaza por `<input type="file" capture>`), `react-native-webview`, `expo-notifications`. Ver `.claude/agents/web-platform-specialist.md` para el detalle por módulo
 - No existe todavía pipeline de deploy para la Expo Web app (sin script de export estático, sin destino de hosting configurado) ni CI/CD en el repo (`.github/workflows/` no existe) — ambos son trabajo pendiente de esta fase, no algo ya resuelto que solo haya que activar
-- **Bloqueante de seguridad a resolver antes de un lanzamiento web público**: `src/services/openai.ts` llama a la API de OpenAI directamente desde el cliente usando `EXPO_PUBLIC_OPENAI_API_KEY` (ver `src/constants/config.ts`). En un bundle web esa key es trivialmente visible desde las devtools del navegador. Antes del lanzamiento, esa llamada debería moverse detrás de `api/` (que ya maneja `OPENAI_API_KEY` server-side para `/analizar-boleta`)
+- ✅ **Resuelto (2026-08-24)**: `src/services/openai.ts` y `src/services/boleta.ts` ya no llaman a OpenAI directo desde el cliente. Ambos pasan por `api/` (`POST /asistente`, `POST /analizar-boleta`), que usa `OPENAI_API_KEY` server-side. `EXPO_PUBLIC_OPENAI_API_KEY` ya no existe en el proyecto
 - Para este trabajo usa `.claude/agents/web-platform-specialist.md` (UI/UX web, responsividad, adaptación de módulos nativos) y `.claude/agents/devops-specialist.md` (pipeline de deploy, CI/CD, variables de entorno)
 
 ## Reglas generales
