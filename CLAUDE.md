@@ -29,7 +29,7 @@ Nota: el `README.md` menciona Firebase en varias secciones; eso está desactuali
 
 - `src/index.js` — servidor Express único: caché en memoria (TTL 15 min), normalización de nombres de producto (`normalizarClave`) y combinación de resultados de todos los scrapers
 - `src/scrapers/vtex.js` — helper compartido para los supermercados que **sí** corren sobre VTEX (Jumbo, Santa Isabel). No asumas que un scraper nuevo usa VTEX solo porque el resto del holding lo hizo históricamente — verifícalo (ver estado por supermercado abajo)
-- Endpoints: `GET /buscar?q=`, `GET /health`, `POST /analizar-boleta` (OCR con GPT-4o Vision), `POST /asistente` (asistente de cocina IA)
+- Endpoints (todos bajo `/api`, ver "Despliegue en Vercel" más abajo): `GET /api/buscar?q=`, `GET /api/health`, `POST /api/analizar-boleta` (OCR con GPT-4o Vision), `POST /api/asistente` (asistente de cocina IA). En dev local (`cd api && npm run dev`) también aplica el prefijo: `http://localhost:3000/api/buscar`
 - JavaScript plano (CommonJS), sin TypeScript ni build step — se despliega tal cual a Vercel
 
 ### Estado de los scrapers por supermercado (auditoría 2026-08-24)
@@ -64,16 +64,50 @@ Todos los scrapers deshabilitados fallan rápido con un error descriptivo (no ha
 ```bash
 # App móvil (raíz)
 npm start / npm run android / npm run ios / npm run web
-npm test                      # Jest, corre solo src/__tests__/**/*.test.ts
-npx tsc --noEmit               # chequeo de tipos
+npm run build                  # expo export -p web → dist/ (lo que despliega Vercel)
+npm test                       # Jest, corre solo src/__tests__/**/*.test.ts
+npx tsc --noEmit                # chequeo de tipos
 
 # API de scraping
-cd api && npm run dev          # http://localhost:3000
+cd api && npm run dev          # http://localhost:3000 (rutas bajo /api, ver arriba)
 
 # Sitio web
 cd sitio-web && npm run dev
 cd sitio-web && npm run check  # astro check (tipos + diagnósticos Astro)
 ```
+
+## Despliegue en Vercel
+
+Trabajamos 100% en la nube — sin servidores locales de referencia. El proyecto tiene **dos formas de desplegar `api/`**, no las mezcles:
+
+1. **Deploy unificado (raíz, recomendado)** — `vercel.json` en la raíz del repo. Un solo proyecto de Vercel sirve el export estático de Expo Web (`npm run build` → `dist/`) para todo, y enruta `/api/*` al mismo Express de `api/src/index.js` vía `@vercel/node`. Esto es lo que da Preview Deployments automáticos por rama/PR y producción en un solo flujo — **este es el que se usa en adelante**.
+2. **Deploy standalone de `api/` (legacy/opcional)** — `api/vercel.json`, proyecto de Vercel aparte con Root Directory = `api/`. Sigue funcionando si alguna vez se necesita la API sola en su propio dominio, pero no es el flujo principal.
+
+Como ambos comparten el mismo `api/src/index.js` (rutas montadas bajo `/api` vía `express.Router()`), si se usa el deploy standalone su URL pública también queda bajo `/api/*` (ej. `https://<proyecto-api>.vercel.app/api/buscar`), no en la raíz del dominio.
+
+`src/config/api.ts` (`API_BASE_URL`) es el único lugar que apunta al dominio de producción — actualízalo ahí si cambia (nunca hardcodees la URL en `scraping.ts`/`openai.ts`/`boleta.ts`).
+
+### Variables de entorno a registrar en el panel de Vercel
+
+Solo 3 — confirmadas por `grep -rn "process.env" src api/src`, no inventes nombres que no estén en el código:
+
+| Variable | Dónde se usa | Alcance |
+|---|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | `src/config/supabase.ts` | **Build-time** (Expo la inlinea en el bundle al exportar, como `NEXT_PUBLIC_*` en Next.js) — regístrala para los entornos Production **y** Preview, o los Preview Deployments van a servir un bundle sin Supabase configurado |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | `src/config/supabase.ts` | Build-time, igual que arriba |
+| `OPENAI_API_KEY` | `api/src/index.js` (`POST /api/analizar-boleta`, `POST /api/asistente`) | Runtime, function de Node — no necesita estar presente en el build, solo en ejecución |
+
+`PORT` y `NODE_ENV` no se configuran manualmente — Vercel los provee automáticamente en las Serverless Functions. `EXPO_PUBLIC_OPENAI_API_KEY` **no existe** en el proyecto (se eliminó deliberadamente, ver "Fase 1 — Web First" abajo) — no la agregues.
+
+### Pasos para desplegar una rama de prueba (Preview Deployment)
+
+1. En el dashboard de Vercel: **New Project** → importar el repo → Root Directory = raíz del repo (no `api/`) → Vercel detecta `vercel.json` y respeta sus `builds`, no necesitas configurar Build Command/Output Directory a mano
+2. **Settings → Environment Variables**: agrega las 3 variables de la tabla de arriba, marcando **Production, Preview y Development** (al menos Production + Preview) para cada una
+3. Push a cualquier rama que no sea la de producción (o abre un PR) → Vercel genera automáticamente un Preview Deployment con su propia URL (`<proyecto>-<hash>.vercel.app`)
+4. Verifica el deploy: `<preview-url>/` debe cargar la app web, `<preview-url>/api/health` debe responder `{"ok":true,...}`
+5. Merge/push a la rama de producción configurada en Vercel (normalmente `master`) → mismo build, deploy a producción con el dominio definitivo
+
+No validado contra el pipeline de build real de Vercel desde este entorno (`vercel build` requiere `vercel login` + proyecto vinculado, que no corresponde hacer sin la cuenta real del usuario) — sí se validó localmente: `npm run build` genera `dist/` correctamente, `npx tsc --noEmit` limpio, y el servidor Express responde bien bajo `/api/*`.
 
 ## Fase 1 — Web First
 

@@ -1,11 +1,16 @@
 /**
  * Qhay API — Servidor de scraping de precios chilenos Optimizado
  *
+ * Todas las rutas van bajo /api (el proyecto raíz en Vercel enruta /api/*
+ * a este servidor y sirve el export estático de Expo Web para todo lo
+ * demás — ver vercel.json en la raíz). En dev local también aplica:
+ * http://localhost:3000/api/buscar, no http://localhost:3000/buscar.
+ *
  * Endpoints:
- *   GET /buscar?q=leche        → busca en todos los supermercados y combina
- *   GET /health                → status del servidor
- *   POST /analizar-boleta      → OCR con GPT-4o Vision
- *   POST /asistente            → Asistente de cocina con GPT-4o-mini
+ *   GET /api/buscar?q=leche    → busca en todos los supermercados y combina
+ *   GET /api/health            → status del servidor
+ *   POST /api/analizar-boleta  → OCR con GPT-4o Vision
+ *   POST /api/asistente        → Asistente de cocina con GPT-4o-mini
  */
 
 const express = require('express');
@@ -21,6 +26,9 @@ const app = express();
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.options('*', cors());
 app.use(express.json({ limit: '20mb' }));
+
+// Todas las rutas cuelgan de /api — ver comentario de cabecera
+const router = express.Router();
 
 const PORT = process.env.PORT || 3000;
 
@@ -84,7 +92,7 @@ function combinarResultados(arrays) {
 // ==========================================
 
 // Endpoint de Salud del Servidor
-app.get('/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({ ok: true, version: '1.1.0', ts: new Date().toISOString() });
 });
 
@@ -98,7 +106,7 @@ function sanitizarQuery(raw) {
     .slice(0, 100);
 }
 
-app.get('/buscar', async (req, res) => {
+router.get('/buscar', async (req, res) => {
   const q = sanitizarQuery(req.query.q ?? '');
   if (!q || q.length < 2) {
     return res.status(400).json({ error: 'Parámetro q requerido (mínimo 2 caracteres)' });
@@ -165,7 +173,7 @@ app.get('/buscar', async (req, res) => {
  * Llama a GPT-4o Vision server-side (OPENAI_API_KEY en env de Vercel)
  * Retorna: { items: [{ nombre, cantidad, unidad, precioUnitario }] }
  */
-app.post('/analizar-boleta', async (req, res) => {
+router.post('/analizar-boleta', async (req, res) => {
   const { imagen } = req.body;
   if (!imagen) return res.status(400).json({ error: 'Falta el campo imagen (base64)' });
 
@@ -252,7 +260,7 @@ function limitarTexto(str, max) {
  * Body: { pregunta: string, contexto: { despensa, recetaActual?, pasoActual?, restricciones } }
  * Retorna: { respuesta: string }
  */
-app.post('/asistente', async (req, res) => {
+router.post('/asistente', async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: 'Asistente no configurado en el servidor' });
 
@@ -307,12 +315,14 @@ Pregunta: ${pregunta}`;
   }
 });
 
+app.use('/api', router);
+
 app.listen(PORT, () => {
   if (process.env.NODE_ENV !== 'production') {
     console.log(`🛒 Qhay API escuchando en http://localhost:${PORT}`);
-    console.log(`  GET  /buscar?q=leche`);
-    console.log(`  POST /analizar-boleta`);
-    console.log(`  POST /asistente`);
-    console.log(`  GET  /health`);
+    console.log(`  GET  /api/buscar?q=leche`);
+    console.log(`  POST /api/analizar-boleta`);
+    console.log(`  POST /api/asistente`);
+    console.log(`  GET  /api/health`);
   }
 });
