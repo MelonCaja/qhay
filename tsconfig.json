@@ -1,7 +1,11 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    // Resuelve archivos con extensión de plataforma (.native.tsx, etc.) al
+    // type-checkear, igual que Metro al bundlear. Sin esto, tsc no sabe qué
+    // archivo usar cuando existen .native.tsx/.web.tsx sin un .tsx plano.
+    "moduleSuffixes": [".ios", ".android", ".native", ""]
   },
   "exclude": ["node_modules", "sitio-web"]
 }
