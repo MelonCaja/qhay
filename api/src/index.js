@@ -125,15 +125,21 @@ router.get('/buscar', async (req, res) => {
     }
   }
 
-  // Ejecutar todos los scrapers en paralelo. El .catch(() => []) evita que
-  // un supermercado caído (como Lider) rompa toda la búsqueda.
+  // Ejecutar todos los scrapers en paralelo. Promise.allSettled evita que un
+  // supermercado caído (como Lider) rompa toda la búsqueda — loguea server-side
+  // (Vercel → Deployments → Functions → Logs) Y re-lanza para que
+  // Promise.allSettled lo marque 'rejected' y el motivo real llegue al
+  // cliente en scrapers.errores. Antes el .catch(() => []) convertía CUALQUIER
+  // falla en un array vacío antes de que allSettled pudiera verla — todo se
+  // reportaba como 'fulfilled' y scrapers.errores quedaba siempre en [],
+  // aunque un scraper estuviera fallando en el 100% de las requests.
   const resultados = await Promise.allSettled([
-    buscarEnJumbo(q).catch((e) => { console.warn('[Jumbo Error]', e.message); return []; }),
-    buscarEnSantaIsabel(q).catch((e) => { console.warn('[Santa Isabel Error]', e.message); return []; }),
-    buscarEnUnimarc(q).catch((e) => { console.warn('[Unimarc Error]', e.message); return []; }),
-    buscarEnM10(q).catch((e) => { console.warn('[M10 Error]', e.message); return []; }),
-    buscarEnAlvi(q).catch((e) => { console.warn('[Alvi Error]', e.message); return []; }),
-    buscarEnLider(q).catch((e) => { console.warn('[Lider Error]', e.message); return []; })
+    buscarEnJumbo(q).catch((e) => { console.warn('[Jumbo Error]', e.message); throw e; }),
+    buscarEnSantaIsabel(q).catch((e) => { console.warn('[Santa Isabel Error]', e.message); throw e; }),
+    buscarEnUnimarc(q).catch((e) => { console.warn('[Unimarc Error]', e.message); throw e; }),
+    buscarEnM10(q).catch((e) => { console.warn('[M10 Error]', e.message); throw e; }),
+    buscarEnAlvi(q).catch((e) => { console.warn('[Alvi Error]', e.message); throw e; }),
+    buscarEnLider(q).catch((e) => { console.warn('[Lider Error]', e.message); throw e; })
   ]);
 
   const exitosos = resultados
