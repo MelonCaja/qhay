@@ -75,10 +75,31 @@ describe('TEST 1: registro → onboarding → perfil BAES', () => {
     });
   });
 
-  it('detecta correo duplicado ofuscado (identities vacías, sin error de API)', async () => {
+  it('NO infiere duplicado de identities vacías sin error (regresión 2026-08-25)', async () => {
+    // signUp() puede devolver identities=[] sin error también para un
+    // registro genuinamente nuevo (@supabase/auth-js solo garantiza el
+    // objeto ofuscado cuando Confirm email Y Confirm phone están ambos
+    // habilitados — ver GoTrueClient.ts). Adivinar "duplicado" desde esto
+    // causó un incidente real: falsos positivos con correos nuevos sobre
+    // una base de datos vacía. El único duplicado confiable es el que
+    // Supabase reporta como error explícito (ver test siguiente).
     mockSignUp.mockResolvedValueOnce({
       data: { user: { id: 'uid-x', identities: [] }, session: null },
       error: null,
+    });
+
+    await expect(registrarUsuario('nueva@qhay.cl', 'otra', 'Ana'))
+      .resolves.toMatchObject({ requiereConfirmacion: true });
+  });
+
+  it('propaga el error real de Supabase para un correo genuinamente duplicado', async () => {
+    mockSignUp.mockResolvedValueOnce({
+      data: { user: null, session: null },
+      error: Object.assign(new Error('User already registered'), {
+        name: 'AuthApiError',
+        status: 422,
+        code: 'user_already_exists',
+      }),
     });
 
     await expect(registrarUsuario('ana@qhay.cl', 'otra', 'Ana'))

@@ -14,6 +14,21 @@ import { TerminosModal } from '../../components/legal/TerminosModal';
 
 type Props = { navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'> };
 
+// Códigos reales de @supabase/auth-js (ErrorCode) que signUp() puede lanzar —
+// verificados contra node_modules/@supabase/auth-js/src/lib/error-codes.ts,
+// no inventados. Cualquier código no listado cae en el mensaje genérico.
+const MENSAJES_ERROR_REGISTRO: Record<string, string> = {
+  user_already_exists: 'Ya existe una cuenta con ese correo',
+  email_exists: 'Ya existe una cuenta con ese correo',
+  weak_password: 'La contraseña es demasiado débil (mínimo 6 caracteres)',
+  email_address_invalid: 'El correo no es válido',
+  validation_failed: 'Revisa los datos ingresados',
+  over_email_send_rate_limit: 'Demasiados intentos de registro. Espera unos minutos e inténtalo de nuevo',
+  over_request_rate_limit: 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo',
+  signup_disabled: 'El registro no está disponible en este momento',
+  email_provider_disabled: 'El registro por correo no está disponible en este momento',
+};
+
 export function RegisterScreen({ navigation }: Props) {
   const C = useColors();
   const s = makeStyles(C);
@@ -54,13 +69,10 @@ export function RegisterScreen({ navigation }: Props) {
       }
       // Con confirmación desactivada ya hay sesión: AppNavigator navega solo.
     } catch (error: unknown) {
+      // Mapeo unívoco contra los códigos reales de @supabase/auth-js
+      // (ErrorCode) — el error ya se logueó completo en services/auth.ts.
       const code = (error as { code?: string }).code;
-      const mensaje =
-        code === 'user_already_exists' || code === 'email_exists'
-          ? 'Ya existe una cuenta con ese correo'
-          : code === 'weak_password'
-            ? 'La contraseña es demasiado débil (mínimo 6 caracteres)'
-            : 'Error al crear la cuenta';
+      const mensaje = MENSAJES_ERROR_REGISTRO[code ?? ''] ?? 'Error al crear la cuenta. Inténtalo de nuevo.';
       mostrarAlerta('Error', mensaje);
     } finally {
       setCargando(false);

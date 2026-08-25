@@ -79,16 +79,32 @@ export async function registrarUsuario(
       data: { name: nombre, terms_version: TERMINOS_VERSION },
     },
   });
-  if (error) throw error;
 
-  // Con "Confirm email" activo, un correo ya registrado devuelve un usuario
-  // ofuscado sin identities en vez de error → normalizar a error de duplicado.
-  if (data.user && data.user.identities?.length === 0) {
-    throw Object.assign(new Error('Ya existe una cuenta con ese correo'), {
-      code: 'user_already_exists',
+  if (error) {
+    // Auditoría: el código/status/mensaje real de Supabase, nunca inferido.
+    console.error('[auth] signUp error:', {
+      name: error.name,
+      status: error.status,
+      code: error.code,
+      message: error.message,
     });
+    throw error;
   }
 
+  // OJO — NO inferir "correo duplicado" desde data.user.identities.length === 0.
+  // Ese heurístico (usado antes acá) causó un incidente real: falsos positivos
+  // de "ya existe una cuenta" con correos nuevos sobre una base de datos vacía
+  // (2026-08-25). Motivo, documentado en la fuente de @supabase/auth-js
+  // (GoTrueClient.ts, remarks de signUp): el objeto de usuario "ofuscado" con
+  // identities=[] SOLO se devuelve cuando "Confirm email" Y "Confirm phone"
+  // están AMBOS habilitados en el proyecto — si "Confirm phone" está
+  // deshabilitado (lo normal en un proyecto sin auth por teléfono, como este),
+  // un correo duplicado ya lanza un error real ("User already registered",
+  // code: user_already_exists), capturado arriba. El heurístico no tenía
+  // ninguna garantía de no dispararse también para un signUp genuinamente
+  // nuevo, y evidentemente lo hacía. El único duplicado real y confiable es
+  // el que Supabase reporta como error explícito — si signUp() no lanza
+  // error, se trata como éxito, con o sin sesión según requiereConfirmacion.
   return { user: data.user, requiereConfirmacion: !data.session };
 }
 
