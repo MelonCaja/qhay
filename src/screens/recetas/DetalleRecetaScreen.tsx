@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, Modal, TextInput, StatusBar,
+  TouchableOpacity, Modal, TextInput, StatusBar,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
@@ -57,7 +58,7 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
   const disponibles = ingredientesConEstado.filter((i) => i.disponible).length;
 
   const handleRealizada = () => {
-    Alert.alert('¡Excelente! 🎉', '¿Descontar ingredientes usados de tu despensa?', [
+    mostrarAlerta('¡Excelente! 🎉', '¿Descontar ingredientes usados de tu despensa?', [
       { text: 'No, gracias', style: 'cancel' },
       {
         text: 'Sí, descontar',
@@ -73,11 +74,11 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
                 ? `Se agotaron: ${agotados.map((d) => d.nombre).join(', ')}.`
                 : null,
             ].filter(Boolean).join('\n');
-            Alert.alert('Despensa actualizada', resumen, [
+            mostrarAlerta('Despensa actualizada', resumen, [
               { text: 'OK', onPress: () => navigation.goBack() },
             ]);
           } catch {
-            Alert.alert('Error', 'No se pudo actualizar la despensa.');
+            mostrarAlerta('Error', 'No se pudo actualizar la despensa.');
           }
         },
       },
@@ -87,7 +88,7 @@ export function DetalleRecetaScreen({ route, navigation }: Props) {
   const handleToggleFavorito = () => {
     toggleFavorito(receta.id);
     if (!favorito && receta.esFitness) {
-      Alert.alert('⭐ Guardado en Mis Metas', 'Esta receta ahora aparece en tu sección Mis Metas dentro de Perfil.');
+      mostrarAlerta('⭐ Guardado en Mis Metas', 'Esta receta ahora aparece en tu sección Mis Metas dentro de Perfil.');
     }
   };
 

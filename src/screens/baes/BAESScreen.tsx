@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, StatusBar, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, StatusBar, TextInput } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
@@ -38,7 +39,7 @@ export function BAESScreen() {
     const esValido = dominiosValidos.some(dominio => correo.endsWith(dominio));
 
     if (!esValido) {
-      Alert.alert(
+      mostrarAlerta(
         'Correo no reconocido', 
         'Por favor, ingresa tu correo institucional entregado por tu universidad o instituto (ej: nombre@alu.uct.cl).'
       );
@@ -54,9 +55,9 @@ export function BAESScreen() {
           estudianteVerificado: true 
         });
         setStoreUser({ esEstudiante: true, estudianteVerificado: true });
-        Alert.alert('¡Éxito!', 'Tu estado de estudiante ha sido verificado con éxito mediante tu correo institucional. Los descuentos BAES se aplicarán a tus cálculos.');
+        mostrarAlerta('¡Éxito!', 'Tu estado de estudiante ha sido verificado con éxito mediante tu correo institucional. Los descuentos BAES se aplicarán a tus cálculos.');
       } catch (err) {
-        Alert.alert('Error', 'No pudimos guardar la verificación.');
+        mostrarAlerta('Error', 'No pudimos guardar la verificación.');
       } finally {
         setCargando(false);
       }

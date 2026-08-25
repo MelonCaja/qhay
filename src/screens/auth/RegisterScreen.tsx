@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, Alert, StatusBar, TouchableOpacity,
+  KeyboardAvoidingView, Platform, StatusBar, TouchableOpacity,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
@@ -45,7 +46,7 @@ export function RegisterScreen({ navigation }: Props) {
       const { requiereConfirmacion } = await registrarUsuario(email.trim(), password, nombre.trim());
       if (requiereConfirmacion) {
         // Supabase no emite sesión hasta confirmar el correo → volver al Login
-        Alert.alert(
+        mostrarAlerta(
           '¡Cuenta creada! 📧',
           `Te enviamos un correo de verificación a ${email.trim()}. Confírmalo y luego inicia sesión.`,
           [{ text: 'Entendido', onPress: () => navigation.goBack() }]
@@ -60,7 +61,7 @@ export function RegisterScreen({ navigation }: Props) {
           : code === 'weak_password'
             ? 'La contraseña es demasiado débil (mínimo 6 caracteres)'
             : 'Error al crear la cuenta';
-      Alert.alert('Error', mensaje);
+      mostrarAlerta('Error', mensaje);
     } finally {
       setCargando(false);
     }

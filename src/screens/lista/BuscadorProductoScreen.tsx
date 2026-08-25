@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TextInput, TouchableOpacity, Alert, StatusBar, Modal, Pressable,
+  TextInput, TouchableOpacity, StatusBar, Modal, Pressable,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -162,7 +163,7 @@ export function BuscadorProductoScreen({ route }: Props) {
       try { idFinal = await agregarItemLista(usuario.id, itemData); } catch {}
     }
     agregarItem({ ...itemData, id: idFinal });
-    Alert.alert(
+    mostrarAlerta(
       'Agregado ✓',
       `${producto.nombre} en ${precio.supermercado} agregado a tu lista.`,
       [{ text: 'OK', onPress: () => navigation.goBack() }],
@@ -171,7 +172,7 @@ export function BuscadorProductoScreen({ route }: Props) {
 
   const handleGuardarEnDespensa = async (producto: Producto, precio: PrecioSupermercado) => {
     if (!usuario) {
-      Alert.alert('Inicia sesión', 'Necesitas una cuenta para guardar en la despensa.');
+      mostrarAlerta('Inicia sesión', 'Necesitas una cuenta para guardar en la despensa.');
       return;
     }
     try {
@@ -186,9 +187,9 @@ export function BuscadorProductoScreen({ route }: Props) {
         precioUnitario: precio.precio,
         categoria: filtroCategoria || undefined,
       });
-      Alert.alert('¡Guardado! 🏠', `${producto.nombre} agregado a tu despensa.`);
+      mostrarAlerta('¡Guardado! 🏠', `${producto.nombre} agregado a tu despensa.`);
     } catch {
-      Alert.alert('Error', 'No se pudo guardar en la despensa.');
+      mostrarAlerta('Error', 'No se pudo guardar en la despensa.');
     }
   };
 

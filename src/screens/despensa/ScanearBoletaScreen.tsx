@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, StatusBar, Image, TextInput, Platform,
+  ScrollView, ActivityIndicator, StatusBar, Image, TextInput, Platform,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
@@ -63,7 +64,7 @@ export function ScanearBoletaScreen() {
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara.');
+      mostrarAlerta('Permiso requerido', 'Necesitamos acceso a la cámara.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -84,7 +85,7 @@ export function ScanearBoletaScreen() {
 
     // Límite plan Free: 4 escaneos/mes (contador en /users/{uid}.limites)
     if (usuario && !puedeEscanearBoleta(usuario)) {
-      Alert.alert(
+      mostrarAlerta(
         'Límite mensual alcanzado',
         `Tu plan gratuito incluye ${LIMITE_ESCANEOS_FREE} escaneos de boleta al mes. Pásate a Premium para escaneos ilimitados.`,
       );
@@ -95,7 +96,7 @@ export function ScanearBoletaScreen() {
     try {
       const extraidos = await escanearBoleta(foto.base64);
       if (extraidos.length === 0) {
-        Alert.alert(
+        mostrarAlerta(
           'Sin productos detectados',
           'No se encontraron productos. Intenta con mejor iluminación o usa el modo código de barras.',
           [{ text: 'OK', onPress: () => setPaso('preview') }]
@@ -108,7 +109,7 @@ export function ScanearBoletaScreen() {
       setItems(mapeados.map((i) => ({ ...i, seleccionado: true })));
       setPaso('revision');
     } catch (err: any) {
-      Alert.alert('Error al analizar', err?.message ?? 'Error desconocido', [
+      mostrarAlerta('Error al analizar', err?.message ?? 'Error desconocido', [
         { text: 'OK', onPress: () => setPaso('preview') },
       ]);
     }
@@ -122,7 +123,7 @@ export function ScanearBoletaScreen() {
     try {
       const producto = await buscarPorCodigoBarras(codigo);
       if (!producto) {
-        Alert.alert(
+        mostrarAlerta(
           'Producto no encontrado',
           `Código: ${codigo}\n¿Quieres agregarlo manualmente?`,
           [
@@ -149,7 +150,7 @@ export function ScanearBoletaScreen() {
       });
       setPaso('revision');
     } catch {
-      Alert.alert('Error', 'No se pudo consultar el producto.', [
+      mostrarAlerta('Error', 'No se pudo consultar el producto.', [
         { text: 'OK', onPress: () => { escaneandoRef.current = false; setPaso('camara'); } },
       ]);
     } finally {
@@ -187,10 +188,10 @@ export function ScanearBoletaScreen() {
         imageUrl: item.imageUrl,
         agregadoPor: 'boleta',
       })));
-      Alert.alert('¡Listo!', `${sel.length} producto${sel.length !== 1 ? 's' : ''} agregado${sel.length !== 1 ? 's' : ''} a tu despensa.`,
+      mostrarAlerta('¡Listo!', `${sel.length} producto${sel.length !== 1 ? 's' : ''} agregado${sel.length !== 1 ? 's' : ''} a tu despensa.`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]);
     } catch {
-      Alert.alert('Error', 'No se pudieron guardar algunos productos.');
+      mostrarAlerta('Error', 'No se pudieron guardar algunos productos.');
     } finally {
       setGuardando(false);
     }

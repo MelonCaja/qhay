@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, Switch, StatusBar,
+  TouchableOpacity, Switch, StatusBar,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -52,7 +53,7 @@ export function PerfilScreen() {
     try {
       await actualizarUsuario(usuario.id, { restriccionesAlimentarias: nuevas });
       actualizarStore({ restriccionesAlimentarias: nuevas });
-    } catch { Alert.alert('Error', 'No se pudo guardar el cambio'); }
+    } catch { mostrarAlerta('Error', 'No se pudo guardar el cambio'); }
     finally { setGuardando(false); }
   };
 
@@ -189,13 +190,13 @@ export function PerfilScreen() {
 
         {/* Acciones */}
         <View style={s.acciones}>
-          <TouchableOpacity style={s.btnSalir} onPress={() => Alert.alert('Cerrar sesión', '¿Estás seguro?', [
+          <TouchableOpacity style={s.btnSalir} onPress={() => mostrarAlerta('Cerrar sesión', '¿Estás seguro?', [
             { text: 'Cancelar', style: 'cancel' },
             { text: 'Cerrar sesión', style: 'destructive', onPress: logout },
           ])}>
             <Text style={s.btnSalirTexto}>Cerrar sesión</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => Alert.alert(
+          <TouchableOpacity onPress={() => mostrarAlerta(
             'Eliminar cuenta',
             `Escríbenos a ${CORREO_SOPORTE} para eliminar tu cuenta.`
           )}>

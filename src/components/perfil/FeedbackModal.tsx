@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, TextInput, StyleSheet, Pressable, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, 
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Button } from '../common/Button';
@@ -34,7 +35,7 @@ export function FeedbackModal({ visible, onCerrar }: FeedbackModalProps) {
 
   const enviar = async () => {
     if (rating === 0) {
-      Alert.alert('Falta tu puntuación', 'Toca las estrellas para calificar tu experiencia.');
+      mostrarAlerta('Falta tu puntuación', 'Toca las estrellas para calificar tu experiencia.');
       return;
     }
     if (!mensajeValido) return; // el botón ya va deshabilitado; guard por si acaso
@@ -48,7 +49,7 @@ export function FeedbackModal({ visible, onCerrar }: FeedbackModalProps) {
       // El Alert espera a que el Modal termine de desmontarse: en iOS un
       // alert disparado sobre un modal en cierre puede no mostrarse nunca
       setTimeout(() => {
-        Alert.alert(
+        mostrarAlerta(
           '¡Gracias por tu feedback! 🙌',
           'Lo leeremos con atención. Nos ayuda a hacer Qhay cada vez mejor.'
         );
@@ -56,7 +57,7 @@ export function FeedbackModal({ visible, onCerrar }: FeedbackModalProps) {
     } catch (e) {
       setCargando(false);
       console.error('[feedback] Error al guardar:', e);
-      Alert.alert('No se pudo enviar', 'Revisa tu conexión e inténtalo de nuevo.');
+      mostrarAlerta('No se pudo enviar', 'Revisa tu conexión e inténtalo de nuevo.');
     }
   };
 

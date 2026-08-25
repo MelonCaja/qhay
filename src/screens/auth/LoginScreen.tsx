@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, Alert, StatusBar,
+  KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as WebBrowser from 'expo-web-browser';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { OlvidePasswordModal } from '../../components/auth/OlvidePasswordModal';
+// services/auth ya llama WebBrowser.maybeCompleteAuthSession() a nivel de
+// módulo — no repetirlo aquí (se importa igual, transitivamente).
 import { iniciarSesion, loginConGoogle, reenviarVerificacion } from '../../services/auth';
-
-WebBrowser.maybeCompleteAuthSession();
 
 type Props = { navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'> };
 
@@ -36,7 +36,7 @@ export function LoginScreen({ navigation }: Props) {
       // Con sesión, AppNavigator navega solo al poblarse el usuario.
     } catch (error) {
       console.error('[login] Error Google:', error);
-      Alert.alert('Error', 'No pudimos iniciar sesión con Google. Inténtalo de nuevo.');
+      mostrarAlerta('Error', 'No pudimos iniciar sesión con Google. Inténtalo de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -62,7 +62,7 @@ export function LoginScreen({ navigation }: Props) {
       console.error('[login] Error email/pass:', error);
       const code: string | undefined = error?.code;
       if (code === 'email_not_confirmed') {
-        Alert.alert(
+        mostrarAlerta(
           'Correo sin verificar',
           'Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada (y spam).',
           [
@@ -74,7 +74,7 @@ export function LoginScreen({ navigation }: Props) {
         const mensaje = code === 'invalid_credentials'
           ? 'No existe una cuenta con ese correo o la contraseña es incorrecta.'
           : `Error al iniciar sesión${code ? ` (${code})` : ''}.`;
-        Alert.alert('Error', mensaje);
+        mostrarAlerta('Error', mensaje);
       }
     } finally {
       setCargando(false);

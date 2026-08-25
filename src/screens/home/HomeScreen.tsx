@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, 
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -90,9 +91,9 @@ export function HomeScreen() {
     setReenviando(true);
     try {
       await reenviarVerificacion();
-      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada (y spam).');
+      mostrarAlerta('Correo enviado', 'Revisa tu bandeja de entrada (y spam).');
     } catch {
-      Alert.alert('Error', 'No se pudo enviar el correo. Intenta más tarde.');
+      mostrarAlerta('Error', 'No se pudo enviar el correo. Intenta más tarde.');
     } finally {
       setReenviando(false);
     }
@@ -100,7 +101,7 @@ export function HomeScreen() {
 
   const handleYaVerifique = async () => {
     const ok = await recargarVerificacion();
-    if (!ok) Alert.alert('Aún sin verificar', 'Haz clic en el enlace del correo que te enviamos y vuelve a intentarlo.');
+    if (!ok) mostrarAlerta('Aún sin verificar', 'Haz clic en el enlace del correo que te enviamos y vuelve a intentarlo.');
   };
 
   const handleQuickAgregar = async (ingrediente: Ingrediente) => {
@@ -114,9 +115,9 @@ export function HomeScreen() {
         imageUrl: ingrediente.imageUrl,
         categoria: ingrediente.categoria,
       });
-      Alert.alert('¡Listo! ✓', `${ingrediente.nombre} agregado a tu despensa.`);
+      mostrarAlerta('¡Listo! ✓', `${ingrediente.nombre} agregado a tu despensa.`);
     } catch {
-      Alert.alert('Error', 'No se pudo agregar. Intenta de nuevo.');
+      mostrarAlerta('Error', 'No se pudo agregar. Intenta de nuevo.');
     }
   };
 

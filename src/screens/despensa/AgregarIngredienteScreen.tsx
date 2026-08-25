@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
   TouchableOpacity, TextInput, StatusBar,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Button } from '../../components/common/Button';
@@ -43,15 +44,15 @@ export function AgregarIngredienteScreen() {
   };
 
   const handleGuardar = async () => {
-    if (!nombre.trim()) { Alert.alert('Falta el nombre', '¿Qué ingrediente quieres agregar?'); return; }
+    if (!nombre.trim()) { mostrarAlerta('Falta el nombre', '¿Qué ingrediente quieres agregar?'); return; }
     const cantidadNum = Number(cantidad);
-    if (!cantidad || isNaN(cantidadNum) || cantidadNum <= 0) { Alert.alert('Cantidad inválida', 'Ingresa una cantidad mayor a 0'); return; }
+    if (!cantidad || isNaN(cantidadNum) || cantidadNum <= 0) { mostrarAlerta('Cantidad inválida', 'Ingresa una cantidad mayor a 0'); return; }
     setGuardando(true);
     try {
       await agregar({ nombre: nombre.trim(), cantidad: cantidadNum, unidad, fechaVencimiento: parsearFecha(), agregadoPor: 'manual' });
       navigation.goBack();
     } catch {
-      Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
+      mostrarAlerta('Error', 'No se pudo guardar. Intenta de nuevo.');
     } finally {
       setGuardando(false);
     }

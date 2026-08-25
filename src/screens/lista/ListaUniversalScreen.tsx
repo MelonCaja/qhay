@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, StatusBar, Alert, Pressable,
+  TouchableOpacity, StatusBar, Pressable,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import { ESPACIO_TAB_BAR } from '../../constants/layout';
@@ -54,7 +55,7 @@ export function ListaUniversalScreen({ embebida = false }: { embebida?: boolean 
       const item = await addItemToList(lista, nombre);
       setLista({ ...lista, items: [...lista.items, item] });
     } catch {
-      Alert.alert('Error', 'No se pudo agregar el producto.');
+      mostrarAlerta('Error', 'No se pudo agregar el producto.');
     }
   };
 
@@ -87,7 +88,7 @@ export function ListaUniversalScreen({ embebida = false }: { embebida?: boolean 
       ]}
       onPress={() => toggle(item)}
       onLongPress={() =>
-        Alert.alert('Eliminar', `¿Quitar "${item.productName}" de la lista?`, [
+        mostrarAlerta('Eliminar', `¿Quitar "${item.productName}" de la lista?`, [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Eliminar', style: 'destructive', onPress: () => eliminar(item) },
         ])

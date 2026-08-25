@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Alert, StatusBar, ActivityIndicator,
+  StatusBar, ActivityIndicator,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -18,7 +19,7 @@ export function EmailVerificationScreen() {
     try {
       const ok = await recargarVerificacion();
       if (!ok) {
-        Alert.alert(
+        mostrarAlerta(
           'Aún sin verificar',
           'Haz clic en el enlace del correo que te enviamos y vuelve a intentarlo.',
           [{ text: 'OK' }]
@@ -33,9 +34,9 @@ export function EmailVerificationScreen() {
     setReenviando(true);
     try {
       await reenviarVerificacion();
-      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada y la carpeta de spam.');
+      mostrarAlerta('Correo enviado', 'Revisa tu bandeja de entrada y la carpeta de spam.');
     } catch {
-      Alert.alert('Error', 'No se pudo enviar el correo. Intenta más tarde.');
+      mostrarAlerta('Error', 'No se pudo enviar el correo. Intenta más tarde.');
     } finally {
       setReenviando(false);
     }

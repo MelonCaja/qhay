@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, StatusBar,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useColors, ColorPalette } from '../../context/ThemeContext';
 import { Button } from '../../components/common/Button';
 import { useAuth } from '../../hooks/useAuth';
@@ -88,7 +89,7 @@ export function OnboardingScreen() {
       await completarOnboarding(usuario.id, datos);
       actualizarStore({ ...datos, onboardingCompletado: true });
     } catch {
-      Alert.alert('Error', 'No se pudo guardar tu perfil.');
+      mostrarAlerta('Error', 'No se pudo guardar tu perfil.');
     } finally {
       setGuardando(false);
     }

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView,
-  TouchableOpacity, Alert, StatusBar, Modal,
+  TouchableOpacity, StatusBar, Modal,
   TextInput, Pressable,
 } from 'react-native';
+import { mostrarAlerta } from '../../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -238,16 +239,16 @@ function MisListasModal({ visible, onClose }: { visible: boolean; onClose: () =>
 
   const handleGuardar = async () => {
     if (!nombreNueva.trim()) {
-      Alert.alert('Nombre requerido', 'Ingresa un nombre para la lista.');
+      mostrarAlerta('Nombre requerido', 'Ingresa un nombre para la lista.');
       return;
     }
     await guardarListaActual(nombreNueva.trim());
     setNombreNueva('');
-    Alert.alert('Lista guardada', `"${nombreNueva.trim()}" guardada correctamente.`);
+    mostrarAlerta('Lista guardada', `"${nombreNueva.trim()}" guardada correctamente.`);
   };
 
   const handleCargar = (id: string, nombre: string) => {
-    Alert.alert('Cargar lista', `¿Reemplazar la lista actual con "${nombre}"?`, [
+    mostrarAlerta('Cargar lista', `¿Reemplazar la lista actual con "${nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Cargar', onPress: () => {
@@ -259,7 +260,7 @@ function MisListasModal({ visible, onClose }: { visible: boolean; onClose: () =>
   };
 
   const handleEliminar = (id: string, nombre: string) => {
-    Alert.alert('Eliminar lista', `¿Eliminar "${nombre}"?`, [
+    mostrarAlerta('Eliminar lista', `¿Eliminar "${nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => eliminarListaGuardada(id) },
     ]);
@@ -381,7 +382,7 @@ export function ListaComprasScreen({ embebida = false }: { embebida?: boolean })
   const handleLimpiarComprados = () => {
     const comprados = items.filter((i) => i.completado);
     if (comprados.length === 0) return;
-    Alert.alert('Limpiar lista', `¿Eliminar ${comprados.length} productos comprados?`, [
+    mostrarAlerta('Limpiar lista', `¿Eliminar ${comprados.length} productos comprados?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Limpiar', style: 'destructive', onPress: () => comprados.forEach((i) => handleEliminar(i.id)) },
     ]);
