@@ -25,6 +25,8 @@ No existe Next.js ni Tailwind CSS en este proyecto — el estilo en la app es `S
 
 Nota: el `README.md` menciona Firebase en varias secciones; eso está desactualizado — la app usa **Supabase** (Auth + Postgres) como backend de datos, ver `src/config/supabase.ts` y `supabase/schema.sql`. No agregues dependencias de Firebase.
 
+**No infieras "correo duplicado" desde `data.user.identities` en `signUp()`.** El objeto de usuario "ofuscado" (identities vacío, sin error) que Supabase devuelve para un correo ya registrado solo está garantizado cuando **Confirm email Y Confirm phone** están ambos habilitados en el proyecto (documentado en `node_modules/@supabase/auth-js/src/GoTrueClient.ts`, remarks de `signUp`) — con Confirm phone deshabilitado (normal sin auth por teléfono, como este proyecto), un duplicado real ya lanza un `error` explícito (`code: user_already_exists`), que sí hay que capturar. Un heurístico basado en `identities.length === 0` causó un incidente real (2026-08-25): falsos positivos de "ya existe una cuenta" con correos nuevos sobre una base de datos vacía — ver `src/services/auth.ts` y el test de regresión en `userFlow.test.ts`. El único duplicado confiable es el que Supabase reporta como error.
+
 ## Backend de scraping (`api/`)
 
 - `src/index.js` — servidor Express único: caché en memoria (TTL 15 min), normalización de nombres de producto (`normalizarClave`) y combinación de resultados de todos los scrapers
