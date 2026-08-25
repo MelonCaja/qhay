@@ -22,9 +22,15 @@ export interface ResultadoRegistro {
 // El perfil en /profiles lo crea el trigger handle_new_user (schema.sql).
 // Devuelve null si el usuario cierra el navegador sin completar el login.
 export async function loginConGoogle(): Promise<Session | null> {
-  // exp://<ip>:8081 en Expo Go (el scheme explícito se ignora ahí),
-  // qhay://auth en builds — ambos deben estar en la allowlist:
-  // Supabase → Auth → URL Configuration → Redirect URLs (qhay://** y exp://**).
+  // exp://<ip>:8081 en Expo Go, qhay://auth en builds nativas, y en web
+  // ignora `scheme` y usa dinámicamente window.location.origin + '/auth'
+  // (confirmado en expo-auth-session/build/SessionUrlProvider.js) — así
+  // que en producción web resuelve solo al dominio real, sin hardcodear
+  // nada acá. Los TRES patrones deben estar en la allowlist de Supabase:
+  // Auth → URL Configuration → Redirect URLs — qhay://**, exp://**, y
+  // el dominio de producción real (ej. https://qhay.cl/** o el dominio
+  // de Vercel), o el login con Google falla en web con redirect_uri
+  // no permitido. Esto se configura en el dashboard, no en el código.
   const redirectTo = makeRedirectUri({ scheme: 'qhay', path: 'auth' });
 
   const { data, error } = await supabase.auth.signInWithOAuth({
