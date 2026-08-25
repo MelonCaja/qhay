@@ -109,6 +109,19 @@ Solo 3 — confirmadas por `grep -rn "process.env" src api/src`, no inventes nom
 
 No validado contra el pipeline de build real de Vercel desde este entorno (`vercel build` requiere `vercel login` + proyecto vinculado, que no corresponde hacer sin la cuenta real del usuario) — sí se validó localmente: `npm run build` genera `dist/` correctamente, `npx tsc --noEmit` limpio, y el servidor Express responde bien bajo `/api/*`.
 
+### `sitio-web/` es un proyecto de Vercel APARTE — no se fusiona con el de arriba
+
+`sitio-web/` (landing + `/privacidad` + `/terminos`, Astro) se despliega como su **propio proyecto de Vercel**, independiente del unificado (app Expo + `api/`). Decisión explícita (2026-08-24): se evaluó fusionar ambos en un solo `vercel.json` sirviendo `sitio-web/` bajo un subpath (ej. `/landing`), pero se descartó — con múltiples `builds` de tipo `@vercel/static-build` en un mismo `vercel.json`, no hay forma de verificar sin una cuenta de Vercel real conectada cómo se resuelve una posible colisión entre los `index.html` de cada build (el de la app Expo y el de la landing), y el riesgo de que uno pise al otro en producción no vale la pena frente a la alternativa simple. Dos proyectos separados es además el patrón que Vercel recomienda para monorepos con apps no relacionadas.
+
+**Causa raíz de un incidente real (2026-08-24)**: tras crear el `vercel.json` unificado, `www.qhay.cl` seguía sirviendo la landing de Astro — el build tardaba ~9s (tiempo de un `astro build`, no de un `expo export` que bundlea ~850 módulos). Causa: el proyecto de Vercel históricamente conectado al dominio `qhay.cl` tiene su **Root Directory apuntando a `sitio-web/`** — nunca llegó a leer el `vercel.json` de la raíz del repo, porque con Root Directory = `sitio-web/`, ESE se convierte en el directorio raíz que Vercel usa para todo (incluida la búsqueda de `vercel.json`). No es algo que un cambio de archivo en el repo pueda arreglar — es una configuración del proyecto en el dashboard, fuera de control de versiones.
+
+**Setup correcto (dos proyectos)**:
+
+1. Proyecto A (`sitio-web/`) — el que ya existe y funciona hoy. Root Directory = `sitio-web/`. Déjalo con el dominio que corresponda a la landing/legal (puede seguir siendo `qhay.cl` temporalmente durante la migración, o pasar a algo como `landing.qhay.cl`, o quedar solo en su URL `*.vercel.app` si ya no hace falta un dominio propio)
+2. Proyecto B (app Expo + `api/`) — proyecto nuevo, Root Directory = raíz del repo (Vercel detecta el `vercel.json` de la raíz automáticamente). Es al que hay que mover el dominio `qhay.cl`/`www.qhay.cl` para que la app interactiva sea lo que se sirve ahí
+3. En el dashboard: **Proyecto B → Settings → Domains → Add** `qhay.cl` (y `www.qhay.cl`). Si el dominio ya está asignado al Proyecto A, Vercel pide confirmar el traspaso — cuando se acepta, dejar de estar en A y pasa a B
+4. Verificar tras el traspaso: `qhay.cl/` debe cargar la app (comparador/escáner/mapa), `qhay.cl/api/health` debe responder `{"ok":true,...}` — si el Proyecto A todavía tenía un dominio propio, sus URLs (`/`, `/privacidad`, `/terminos`) siguen intactas ahí, sin cambios de código
+
 ## Fase 1 — Web First
 
 Decisión de estrategia (2026-08): antes de invertir en builds nativas de app store, priorizamos validar el producto en **web** (Expo Web sobre `react-native-web`) para conseguir feedback de usuarios reales más rápido. Implicaciones concretas:

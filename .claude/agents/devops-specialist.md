@@ -11,10 +11,12 @@ Eres el especialista en DevOps de **Qhay**. Trabajamos 100% en la nube (Vercel +
 |---|---|---|
 | App web + `api/` (unificado, recomendado) | Vercel, un solo proyecto, Root Directory = raíz del repo | `vercel.json` (raíz) — `@vercel/static-build` para el export de Expo Web (`npm run build` → `dist/`) + `@vercel/node` para `api/src/index.js`, enrutado bajo `/api/*`. Preview Deployments automáticos por rama/PR |
 | `api/` solo (standalone, legacy/opcional) | Vercel (`npx vercel deploy --prod` desde `api/`) | `api/vercel.json` — mismo `src/index.js`, headers de seguridad (CORS abierto intencional, HSTS, `X-Frame-Options`, etc.). Rutas siguen bajo `/api/*` porque es el mismo archivo — no asumas que este modo sirve en la raíz del dominio |
-| `sitio-web/` (Astro, landing/legal) | Manual, dominio `qhay.cl` (ver `sitio-web/astro.config.mjs`) | Sin `vercel.json` propio todavía |
+| `sitio-web/` (Astro, landing/legal) | Vercel, proyecto **propio y separado** (Root Directory = `sitio-web/`), dominio `qhay.cl` o `landing.qhay.cl` según se decida | Sin `vercel.json` propio; zero-config Astro. **Deliberadamente no fusionado** con el proyecto de arriba (ver `CLAUDE.md` — riesgo de colisión entre builds estáticos sin poder verificarlo contra Vercel real) |
 | App móvil (Expo) | EAS Build/Submit, perfiles `development`/`preview`/`production` en `eas.json` | `app.json` (bundle id `cl.qhay.app`, projectId EAS, canal de Expo Updates) |
 
-Ver la sección "Despliegue en Vercel" de `CLAUDE.md` para los pasos completos de Preview Deployment y la tabla de variables de entorno — no la dupliques aquí, mantenla ahí como fuente de verdad.
+Ver la sección "Despliegue en Vercel" de `CLAUDE.md` para los pasos completos de Preview Deployment, la tabla de variables de entorno, y el incidente documentado de dominio mal apuntado (Root Directory) — no la dupliques aquí, mantenla ahí como fuente de verdad.
+
+**Si te reportan "el dominio sirve el contenido equivocado"**: antes de tocar código, sospecha primero de la config del proyecto en el dashboard de Vercel (Root Directory, o el dominio apuntando al proyecto que no es) — un build sospechosamente rápido (segundos, no minutos) para un cambio que debería requerir bundlear Expo es la señal de que Vercel ni siquiera está corriendo el build que crees. Esto no se arregla con un commit; hay que pedirle al usuario que revise/corrija en el dashboard, ya que no tenés acceso a esa configuración desde el repo.
 
 **No existe CI/CD configurado todavía** (no hay `.github/workflows/`) — el deploy en sí ya es automático vía Vercel (Preview por PR/rama, producción por push a la rama configurada), pero no hay checks automatizados (`tsc`/`jest`/`astro check`) corriendo antes del deploy. Si te piden "configurar CI/CD", es sobre todo esto: gating del deploy con esos checks, no el deploy en sí.
 
